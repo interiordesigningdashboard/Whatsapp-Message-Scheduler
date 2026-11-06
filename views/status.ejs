@@ -1,0 +1,69 @@
+<%- include('partials/header', { title: 'Status' }) %>
+
+<h1>Status</h1>
+
+<section class="card" id="wa-card">
+  <h2>WhatsApp connection</h2>
+  <p>
+    <span id="wa-badge" class="badge badge-<%= wa.status %>"><%= wa.status %></span>
+    <span id="wa-text"></span>
+  </p>
+
+  <div id="wa-qr" class="qr" hidden>
+    <p>On your phone, open <strong>WhatsApp → Settings → Linked devices → Link a device</strong> and scan this code:</p>
+    <img id="wa-qr-img" alt="WhatsApp QR code">
+  </div>
+
+  <p id="wa-error" class="error" hidden></p>
+
+  <form id="wa-logout" method="post" action="/whatsapp/logout" hidden
+        onsubmit="return confirm('Unlink this PC from WhatsApp? You will need to scan the QR code again.')">
+    <button type="submit" class="btn btn-secondary">Unlink this PC</button>
+  </form>
+</section>
+
+<script>
+  const TEXT = {
+    disabled: 'WhatsApp is turned off (WA_DISABLED=1).',
+    starting: 'Starting WhatsApp… this can take up to a minute.',
+    qr: 'Waiting for you to scan the QR code.',
+    authenticating: 'QR scanned. Loading your chats…',
+    ready: '',
+    disconnected: 'Connection lost. Reconnecting in a few seconds…',
+    error: 'Something went wrong. Retrying in a few seconds…',
+  };
+
+  function render(s) {
+    const badge = document.getElementById('wa-badge');
+    badge.textContent = s.status;
+    badge.className = 'badge badge-' + s.status;
+
+    let text = TEXT[s.status] || '';
+    if (s.status === 'ready' && s.me) {
+      text = 'Connected as ' + (s.me.name || '') + (s.me.number ? ' (+' + s.me.number + ')' : '');
+    }
+    document.getElementById('wa-text').textContent = text;
+
+    const qr = document.getElementById('wa-qr');
+    qr.hidden = !(s.status === 'qr' && s.qrDataUrl);
+    if (!qr.hidden) document.getElementById('wa-qr-img').src = s.qrDataUrl;
+
+    const err = document.getElementById('wa-error');
+    err.hidden = !s.lastError || s.status === 'ready';
+    err.textContent = s.lastError || '';
+
+    document.getElementById('wa-logout').hidden = s.status !== 'ready';
+  }
+
+  async function poll() {
+    try {
+      const res = await fetch('/api/status');
+      render(await res.json());
+    } catch (e) { /* server restarting */ }
+  }
+
+  render(<%- JSON.stringify({ status: wa.status, qrDataUrl: wa.qrDataUrl, me: wa.me, lastError: wa.lastError }) %>);
+  setInterval(poll, 3000);
+</script>
+
+<%- include('partials/footer') %>

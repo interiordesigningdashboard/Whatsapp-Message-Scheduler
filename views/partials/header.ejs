@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= typeof title !== 'undefined' ? title + ' · ' : '' %>WhatsApp Scheduler</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <span class="brand">🎂 WhatsApp Scheduler</span>
+    <nav>
+      <a href="/" class="<%= page === 'status' ? 'active' : '' %>">Status</a>
+    </nav>
+  </header>
+  <main>

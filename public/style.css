@@ -1,0 +1,87 @@
+:root {
+  --bg: #f4f6f5;
+  --card: #ffffff;
+  --text: #1c2421;
+  --muted: #5b6763;
+  --border: #dde3e0;
+  --accent: #128c4a;
+  --danger: #b3261e;
+  --warn: #9a6700;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 12px 24px;
+  background: var(--accent);
+  color: #fff;
+}
+.brand { font-weight: 600; }
+.topbar nav a {
+  color: #e6f4ec;
+  text-decoration: none;
+  margin-right: 16px;
+  padding-bottom: 2px;
+}
+.topbar nav a.active,
+.topbar nav a:hover { color: #fff; border-bottom: 2px solid #fff; }
+
+main { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+h1 { margin-top: 0; }
+h2 { margin-top: 0; font-size: 18px; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  background: #e8ecea;
+  color: var(--muted);
+}
+.badge-ready { background: #dcf3e5; color: var(--accent); }
+.badge-qr,
+.badge-starting,
+.badge-authenticating { background: #fff3d1; color: var(--warn); }
+.badge-error,
+.badge-disconnected { background: #fde2e0; color: var(--danger); }
+
+.qr img {
+  display: block;
+  width: 280px;
+  height: 280px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.error { color: var(--danger); }
+
+.btn {
+  font: inherit;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  background: var(--accent);
+  color: #fff;
+}
+.btn-secondary { background: #fff; color: var(--text); border-color: var(--border); }
