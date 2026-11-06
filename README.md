@@ -32,7 +32,7 @@ These can be turned off, and the times changed, on the **Settings** page.
 
 ## Setup (Windows)
 
-1. Install **Node.js 20 LTS or newer** from https://nodejs.org (keep the default options).
+1. Install **Node.js 22 LTS or newer** from https://nodejs.org (keep the default options).
 2. Download this project and open the folder in **Command Prompt**.
 3. Install the dependencies (this also downloads a Chrome browser for WhatsApp Web, about 150 MB):
 

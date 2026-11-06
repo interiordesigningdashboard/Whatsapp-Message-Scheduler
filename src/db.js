@@ -1,6 +1,14 @@
 const fs = require('fs');
-const Database = require('better-sqlite3');
 const config = require('./config');
+
+// Node's built-in SQLite: nothing to compile on Windows. It still prints an "experimental"
+// warning on some Node versions; hide just that one.
+const emitWarning = process.emitWarning;
+process.emitWarning = (warning, ...rest) => {
+  if (String((warning && warning.message) || warning).includes('SQLite is an experimental feature')) return;
+  return emitWarning.call(process, warning, ...rest);
+};
+const { DatabaseSync } = require('node:sqlite');
 
 const DEFAULT_SETTINGS = {
   self_alert_enabled: '1',
@@ -85,15 +93,42 @@ function open() {
   fs.mkdirSync(config.dataDir, { recursive: true });
   fs.mkdirSync(config.uploadsDir, { recursive: true });
 
-  const db = new Database(config.dbPath);
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
+  const raw = new DatabaseSync(config.dbPath);
+  raw.exec('PRAGMA journal_mode = WAL');
+  raw.exec('PRAGMA foreign_keys = ON');
+  raw.exec('PRAGMA busy_timeout = 5000');
 
-  const current = db.pragma('user_version', { simple: true });
+  // node:sqlite rejects undefined; store it as NULL like an empty value.
+  const clean = (args) => args.map((a) => (a === undefined ? null : a));
+  const db = {
+    prepare: (sql) => {
+      const stmt = raw.prepare(sql);
+      return {
+        run: (...args) => stmt.run(...clean(args)),
+        get: (...args) => stmt.get(...clean(args)),
+        all: (...args) => stmt.all(...clean(args)),
+      };
+    },
+    exec: (sql) => raw.exec(sql),
+    // Wraps fn so that everything inside it is saved together, or not at all.
+    transaction: (fn) => (...args) => {
+      raw.exec('BEGIN');
+      try {
+        const result = fn(...args);
+        raw.exec('COMMIT');
+        return result;
+      } catch (err) {
+        raw.exec('ROLLBACK');
+        throw err;
+      }
+    },
+  };
+
+  const current = raw.prepare('PRAGMA user_version').get().user_version;
   for (let v = current; v < MIGRATIONS.length; v++) {
     db.transaction(() => {
-      db.exec(MIGRATIONS[v]);
-      db.pragma(`user_version = ${v + 1}`);
+      raw.exec(MIGRATIONS[v]);
+      raw.exec(`PRAGMA user_version = ${v + 1}`);
     })();
   }
 

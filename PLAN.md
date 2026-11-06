@@ -28,10 +28,10 @@ A small app that runs on my own PC and sends **birthday messages (image + captio
 
 ## 3. Tech stack
 
-- **Node.js 20+**
+- **Node.js 22.13+**
 - **whatsapp-web.js** with `LocalAuth`, so the session is saved and the QR scan is only needed once. It uses Puppeteer and Chromium.
 - **Express + EJS** for the dashboard pages, with plain CSS
-- **SQLite** (`better-sqlite3`) in a single local DB file
+- **SQLite** (Node's built-in `node:sqlite`, nothing to compile) in a single local DB file
 - **multer** for image uploads, stored in `data/uploads/`
 - **node-cron** for a scheduler tick that runs every minute
 - **Windows Task Scheduler** running `start.bat` at log-on, so the app starts automatically
@@ -121,7 +121,7 @@ data/                 # app.db, uploads/, .wwebjs_auth/  (git-ignored)
 
 ## 8. Running on my Windows PC
 
-- Install **Node.js 20 LTS or newer** from nodejs.org.
+- Install **Node.js 22 LTS or newer** from nodejs.org.
 - In the project folder, run `npm install`, then `npm start`. Open http://localhost:3000 and scan the QR code once from the Status page.
 - **Auto-start:** use Windows Task Scheduler. Create a task with the trigger "At log on" and the action `start.bat`, set to run minimized. The README will give step-by-step instructions.
 - **Power settings:** set Settings → System → Power → "When plugged in, put my device to sleep after" to **Never**. Otherwise sends that fall while the PC is asleep are marked missed.
