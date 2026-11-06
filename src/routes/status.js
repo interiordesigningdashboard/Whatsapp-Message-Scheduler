@@ -1,10 +1,24 @@
 const express = require('express');
 const wa = require('../whatsapp');
+const scheduler = require('../scheduler');
+const models = require('../models');
+const { getSettings } = require('../db');
+const t = require('../time');
+const { flash } = require('./helpers');
 
 const router = express.Router();
 
 router.get('/', (req, res) => {
-  res.render('status', { page: 'status', wa: wa.getState() });
+  const now = new Date();
+  res.render('status', {
+    page: 'status',
+    wa: wa.getState(),
+    upcoming: scheduler.upcoming(now, 5),
+    needContent: scheduler.birthdaysNeedingContent(now, Number(getSettings().reminder_days_ahead)),
+    groupCount: models.listGroups().length,
+    flash: flash(req),
+    t,
+  });
 });
 
 // Polled by the Status page so the QR code and connection state update without a reload.

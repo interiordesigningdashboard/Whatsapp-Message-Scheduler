@@ -1,5 +1,5 @@
 const QRCode = require('qrcode');
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const config = require('./config');
 
 // Connection states shown on the Status page.
@@ -119,8 +119,49 @@ function isReady() {
   return state.status === 'ready' && client !== null;
 }
 
-function getClient() {
+function requireReady() {
+  if (!isReady()) throw new Error('WhatsApp is not connected');
   return client;
 }
 
-module.exports = { start, destroy, logout, getState, isReady, getClient };
+// All groups I am in: [{ groupId, name, participantsCount, adminsOnly }]
+async function listGroups() {
+  const c = requireReady();
+  const chats = await c.getChats();
+  return chats
+    .filter((chat) => chat.isGroup)
+    .map((chat) => ({
+      groupId: chat.id._serialized,
+      name: chat.name || chat.id.user,
+      participantsCount: Array.isArray(chat.participants) ? chat.participants.length : null,
+      adminsOnly: Boolean(chat.groupMetadata && chat.groupMetadata.announce),
+    }));
+}
+
+// Send an image with a caption (or just text if there is no image) to a chat or group.
+async function send(chatId, imageFile, caption) {
+  const c = requireReady();
+  let result;
+  if (imageFile) {
+    const media = MessageMedia.fromFilePath(imageFile);
+    result = await c.sendMessage(chatId, media, { caption: caption || undefined, sendSeen: false });
+  } else if (caption) {
+    result = await c.sendMessage(chatId, caption, { sendSeen: false });
+  } else {
+    throw new Error('Nothing to send: no image or caption');
+  }
+  if (!result) throw new Error('WhatsApp did not accept the message (chat not found or no permission to post)');
+  return result;
+}
+
+function selfChatId() {
+  const c = requireReady();
+  return c.info.wid._serialized;
+}
+
+// Message my own number ("Message yourself" chat).
+async function sendToSelf(imageFile, caption) {
+  return send(selfChatId(), imageFile, caption);
+}
+
+module.exports = { start, destroy, logout, getState, isReady, listGroups, send, sendToSelf };

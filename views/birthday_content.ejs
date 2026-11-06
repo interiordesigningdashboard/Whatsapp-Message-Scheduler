@@ -1,0 +1,65 @@
+<%- include('partials/header', { title: b.name }) %>
+
+<h1>🎂 <%= b.name %></h1>
+
+<section class="card">
+  <% if (next) { %>
+    <p class="lead">For the birthday on <strong><%= t.prettyDate(next.date) %></strong> at <strong><%= b.send_time %></strong>
+      <% if (!b.active) { %><span class="tag">paused</span><% } %></p>
+  <% } %>
+  <p class="muted">
+    Goes to: <%= groupNames.length ? groupNames.join(', ') : 'no groups selected' %>
+    · <a href="/birthdays/<%= b.id %>/edit">Change name, date, time or groups</a>
+  </p>
+  <p class="muted">The image and caption are used once. They are deleted after this birthday is sent (or missed), so next year starts empty.</p>
+</section>
+
+<form method="post" action="/birthdays/<%= b.id %>/content" enctype="multipart/form-data" class="card form">
+  <h2>This year's image and caption</h2>
+
+  <% if (hasContent && b.next_image_path) { %>
+    <div class="preview">
+      <img src="/uploads/<%= b.next_image_path %>" alt="Current image">
+    </div>
+    <label>Replace image (optional)
+      <input type="file" name="image" accept="image/jpeg,image/png,image/webp" onchange="previewImage(this)">
+    </label>
+  <% } else { %>
+    <label>Image
+      <input type="file" name="image" accept="image/jpeg,image/png,image/webp" onchange="previewImage(this)">
+    </label>
+  <% } %>
+  <div class="preview" id="new-preview" hidden><img alt="New image"></div>
+
+  <label>Caption
+    <textarea name="caption" rows="6" maxlength="4000" placeholder="Happy Birthday <%= b.name %>! 🎉"><%= hasContent || errors.length ? caption : '' %></textarea>
+  </label>
+
+  <div class="buttons">
+    <button class="btn" type="submit">Save</button>
+  </div>
+</form>
+
+<% if (hasContent) { %>
+<section class="card">
+  <form method="post" action="/birthdays/<%= b.id %>/test" class="inline">
+    <button class="btn btn-secondary" type="submit" <%= waReady ? '' : 'disabled' %>>Send test to myself</button>
+  </form>
+  <form method="post" action="/birthdays/<%= b.id %>/content/clear" class="inline"
+        onsubmit="return confirm('Remove this image and caption?')">
+    <button class="btn btn-secondary" type="submit">Remove image &amp; caption</button>
+  </form>
+  <% if (!waReady) { %><p class="muted">Connect WhatsApp to send a test.</p><% } %>
+</section>
+<% } %>
+
+<script>
+  function previewImage(input) {
+    const box = document.getElementById('new-preview');
+    const file = input.files && input.files[0];
+    box.hidden = !file;
+    if (file) box.querySelector('img').src = URL.createObjectURL(file);
+  }
+</script>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,41 @@
+<%- include('partials/header', { title: 'History' }) %>
+
+<h1>History</h1>
+
+<form method="get" action="/history" class="card filters">
+  <label>Status
+    <select name="status">
+      <option value="">All</option>
+      <% ['sent', 'failed', 'missed'].forEach((s) => { %><option value="<%= s %>" <%= filters.status === s ? 'selected' : '' %>><%= s %></option><% }) %>
+    </select>
+  </label>
+  <label>Name or group <input type="search" name="q" value="<%= filters.q %>"></label>
+  <label>From <input type="date" name="from" value="<%= filters.from %>"></label>
+  <label>To <input type="date" name="to" value="<%= filters.to %>"></label>
+  <button class="btn" type="submit">Filter</button>
+  <a href="/history">Clear</a>
+</form>
+
+<section class="card">
+  <% if (!rows.length) { %>
+    <p class="muted">Nothing here yet.</p>
+  <% } else { %>
+    <table>
+      <thead><tr><th>Scheduled for</th><th>Message</th><th>Group</th><th>Result</th><th>Details</th></tr></thead>
+      <tbody>
+      <% rows.forEach((r) => { %>
+        <tr>
+          <td><%= t.prettyDateTime(t.parse(r.scheduled_for)) %></td>
+          <td><%= r.job_type === 'birthday' ? '🎂' : '🗓️' %> <%= r.job_label %></td>
+          <td><%= r.group_name || r.group_id || '-' %></td>
+          <td><span class="tag tag-<%= r.status %>"><%= r.status %></span></td>
+          <td class="muted"><%= r.status === 'sent' ? 'at ' + r.sent_at : (r.error || '') %></td>
+        </tr>
+      <% }) %>
+      </tbody>
+    </table>
+    <% if (rows.length >= 300) { %><p class="muted">Showing the latest 300. Use the filters to narrow down.</p><% } %>
+  <% } %>
+</section>
+
+<%- include('partials/footer') %>

@@ -3,7 +3,32 @@
 Sends birthday messages (image + caption) to WhatsApp groups at a set time, from your own Windows PC.
 See [PLAN.md](PLAN.md) for the full design.
 
-> **Status:** Step 1 of 7 is done: WhatsApp login (QR) and the Status page. Birthdays, groups and scheduling come next.
+## How to use it
+
+1. **Status:** scan the QR code once to link your WhatsApp.
+2. **Groups:** click **Load groups from WhatsApp**. Do this again whenever you join or leave a group.
+3. **Birthdays → + Add birthday:** enter the name, day and month, send time, and tick the groups. This is saved permanently.
+4. **Image & caption:** before each birthday, upload this year's image and write the caption.
+   Use **Send test to myself** to see how it looks. After the birthday is sent (or missed), the image and caption
+   are deleted, so next year you add new ones.
+5. **One-off messages:** schedule a single message (image and/or caption) for any date and time.
+6. **History:** shows every send per group: sent, failed (with the reason) or missed.
+
+You also get WhatsApp messages on your own number:
+- the result after each send (for example "Rahul: sent to 4/5 groups", with the reason for any failure)
+- an alert when something was missed
+- a daily reminder (default 09:00) listing birthdays in the next 7 days that still need an image or caption
+
+These can be turned off, and the times changed, on the **Settings** page.
+
+### Rules worth knowing
+
+- **Never sent late.** If the PC is off or WhatsApp is not connected at the send time, the app keeps trying for the
+  grace period (default 2 minutes). After that the message is marked **missed**.
+- **No image or caption, no send.** A birthday with nothing added is marked missed and you get an alert.
+- **29 February** birthdays are sent on 28 February in non-leap years.
+- Groups are sent to one at a time with a random 5–15 second pause in between.
+- Groups where only admins can post are marked **admins only**. Sending there fails unless you are an admin.
 
 ## Setup (Windows)
 

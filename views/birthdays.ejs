@@ -1,0 +1,48 @@
+<%- include('partials/header', { title: 'Birthdays' }) %>
+
+<div class="page-head">
+  <h1>Birthdays</h1>
+  <a class="btn" href="/birthdays/new">+ Add birthday</a>
+</div>
+
+<form method="get" action="/birthdays" class="search">
+  <input type="search" name="q" value="<%= q %>" placeholder="Search by name…">
+</form>
+
+<section class="card">
+  <% if (!rows.length) { %>
+    <p class="muted"><%= q ? 'No one matches that search.' : 'No birthdays yet.' %></p>
+  <% } else { %>
+    <table>
+      <thead><tr><th>Name</th><th>Birthday</th><th>Next send</th><th>Groups</th><th>This year's content</th><th></th></tr></thead>
+      <tbody>
+      <% rows.forEach((b) => { %>
+        <tr class="<%= b.active ? '' : 'inactive' %>">
+          <td><strong><%= b.name %></strong><% if (!b.active) { %> <span class="tag">paused</span><% } %></td>
+          <td><%= b.birth_day %> <%= months[b.birth_month - 1] %></td>
+          <td>
+            <% if (b.next) { %>
+              <%= t.prettyDate(b.next.date) %>, <%= b.send_time %><br>
+              <span class="muted"><%= b.inDays === 0 ? 'today' : b.inDays === 1 ? 'tomorrow' : 'in ' + b.inDays + ' days' %></span>
+            <% } %>
+          </td>
+          <td><%= b.groupIds.length %></td>
+          <td>
+            <% if (b.hasContent) { %>
+              <a class="tag tag-ok" href="/birthdays/<%= b.id %>/content">added</a>
+            <% } else { %>
+              <a class="tag tag-warn" href="/birthdays/<%= b.id %>/content">needs content</a>
+            <% } %>
+          </td>
+          <td class="actions">
+            <a href="/birthdays/<%= b.id %>/content">Image &amp; caption</a>
+            <a href="/birthdays/<%= b.id %>/edit">Edit</a>
+          </td>
+        </tr>
+      <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+</section>
+
+<%- include('partials/footer') %>

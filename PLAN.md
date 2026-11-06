@@ -1,4 +1,6 @@
-# WhatsApp Message Scheduler — Plan (Draft v1)
+# WhatsApp Message Scheduler — Plan
+
+> **Status:** all 7 milestones are built. See README.md for setup and use.
 
 ## 1. Goal
 

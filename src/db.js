@@ -77,6 +77,8 @@ const MIGRATIONS = [
     value TEXT NOT NULL
   );
   `,
+  // 2: remember whether a group only lets admins post
+  `ALTER TABLE wa_groups ADD COLUMN admins_only INTEGER NOT NULL DEFAULT 0;`,
 ];
 
 function open() {

@@ -22,6 +22,45 @@
   </form>
 </section>
 
+<% if (needContent.length) { %>
+<section class="card card-warn">
+  <h2>Needs an image or caption</h2>
+  <ul class="plain">
+    <% needContent.forEach(({ b, next, inDays }) => { %>
+      <li>
+        <a href="/birthdays/<%= b.id %>/content"><strong><%= b.name %></strong></a>:
+        <%= t.prettyDate(next.date) %> at <%= b.send_time %>
+        (<%= inDays === 0 ? 'today' : inDays === 1 ? 'tomorrow' : 'in ' + inDays + ' days' %>)
+      </li>
+    <% }) %>
+  </ul>
+</section>
+<% } %>
+
+<section class="card">
+  <h2>Next sends</h2>
+  <% if (!upcoming.length) { %>
+    <p class="muted">Nothing scheduled. <a href="/birthdays/new">Add a birthday</a> or <a href="/messages/new">schedule a message</a>.</p>
+  <% } else { %>
+    <table>
+      <thead><tr><th>When</th><th>What</th><th>Groups</th><th>Content</th></tr></thead>
+      <tbody>
+      <% upcoming.forEach((u) => { %>
+        <tr>
+          <td><%= t.prettyDateTime(u.when) %></td>
+          <td><span class="muted"><%= u.kind %>:</span> <a href="<%= u.url %>"><%= u.label %></a></td>
+          <td><%= u.groups %></td>
+          <td><% if (u.hasContent) { %><span class="tag tag-ok">ready</span><% } else { %><a class="tag tag-warn" href="<%= u.url %>">needs content</a><% } %></td>
+        </tr>
+      <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+  <% if (!groupCount) { %>
+    <p class="muted">Tip: once WhatsApp is connected, load your groups on the <a href="/groups">Groups</a> page.</p>
+  <% } %>
+</section>
+
 <script>
   const TEXT = {
     disabled: 'WhatsApp is turned off (WA_DISABLED=1).',
