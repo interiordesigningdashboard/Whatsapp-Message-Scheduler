@@ -3,6 +3,12 @@
 Sends birthday messages (image + caption) to WhatsApp groups at a set time, from your own Windows PC.
 See [PLAN.md](PLAN.md) for the full design.
 
+## Note on the WhatsApp library
+
+`npm install` runs `scripts/patch-wwebjs.js`, which applies one small upstream fix to whatsapp-web.js 1.34.7
+(sending images otherwise fails with "Data passed to getter must include an id property"). It is fixed on the
+library's main branch but not yet released. You should see `[patch-wwebjs] applied media send fix` during install.
+
 ## How to use it
 
 1. **Status:** scan the QR code once to link your WhatsApp.

@@ -174,7 +174,7 @@ async function listGroups() {
             else if (typeof parts.length === 'number') count = parts.length;
           }
           groups.push({
-            groupId: chat.id._serialized,
+            groupId: chat.id._serialized || chat.id.$1,
             name: chat.formattedTitle || chat.name || (meta && meta.subject) || chat.id.user,
             participantsCount: count,
             adminsOnly: Boolean(meta && meta.announce),
@@ -229,32 +229,40 @@ async function send(chatId, imageFile, caption) {
   return result;
 }
 
-// My own "Message yourself" chat. Newer accounts have two IDs (phone number and LID);
-// use whichever one WhatsApp Web actually has a chat for.
-async function selfChatId() {
+// My own "Message yourself" chat. Newer accounts have two IDs (phone number and LID), and the
+// chat can live under either. Returns candidates, best first: IDs that already have a chat, then the rest.
+async function selfChatIds() {
   const c = requireReady();
-  let id = null;
+  let ids = [];
   try {
-    id = await c.pupPage.evaluate(() => {
+    ids = await c.pupPage.evaluate(() => {
+      const ser = (w) => (w ? w._serialized || w.$1 || (typeof w.toString === 'function' ? w.toString() : null) : null);
       const { getMaybeMePnUser, getMaybeMeLidUser } = window.require('WAWebUserPrefsMeUser');
       const { Chat } = window.require('WAWebCollections');
-      const ids = [getMaybeMeLidUser(), getMaybeMePnUser()].filter(Boolean);
-      for (const wid of ids) {
-        const chat = Chat.get(wid);
-        if (chat) return chat.id._serialized;
-      }
-      const pn = getMaybeMePnUser();
-      return pn ? pn._serialized : null;
+      const wids = [getMaybeMeLidUser(), getMaybeMePnUser()].filter(Boolean);
+      const withChat = wids.filter((w) => Chat.get(w)).map(ser);
+      return [...withChat, ...wids.map(ser)].filter(Boolean);
     });
   } catch (err) {
     console.warn('[whatsapp] could not look up own chat:', err.message);
   }
-  return id || c.info.wid._serialized;
+  if (c.info && c.info.wid && c.info.wid._serialized) ids.push(c.info.wid._serialized);
+  return [...new Set(ids)];
 }
 
 // Message my own number ("Message yourself" chat).
 async function sendToSelf(imageFile, caption) {
-  return send(await selfChatId(), imageFile, caption);
+  const ids = await selfChatIds();
+  let lastErr = new Error('Could not find your own chat');
+  for (const id of ids) {
+    try {
+      return await send(id, imageFile, caption);
+    } catch (err) {
+      lastErr = err;
+      console.warn(`[whatsapp] send to self via ${id} failed: ${err.message}`);
+    }
+  }
+  throw lastErr;
 }
 
 module.exports = { start, destroy, logout, getState, isReady, listGroups, send, sendToSelf };
