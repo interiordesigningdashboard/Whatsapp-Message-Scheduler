@@ -124,31 +124,74 @@ function requireReady() {
   return client;
 }
 
+// WhatsApp Web often throws minified one-letter errors (e.g. "r"). Make them readable.
+function explain(err) {
+  const msg = (err && err.message) || String(err);
+  const inner = msg.replace(/^Evaluation failed:\s*/, '').trim();
+  if (inner.length <= 3) return `WhatsApp Web internal error ("${inner}"). Try again in a minute; if it keeps happening, restart the app.`;
+  return inner;
+}
+
 // All groups I am in: [{ groupId, name, participantsCount, adminsOnly }]
+// Reads the group list straight from WhatsApp Web's memory instead of client.getChats():
+// getChats() refreshes every group from the server and fails completely if one chat errors.
 async function listGroups() {
   const c = requireReady();
-  const chats = await c.getChats();
-  return chats
-    .filter((chat) => chat.isGroup)
-    .map((chat) => ({
-      groupId: chat.id._serialized,
-      name: chat.name || chat.id.user,
-      participantsCount: Array.isArray(chat.participants) ? chat.participants.length : null,
-      adminsOnly: Boolean(chat.groupMetadata && chat.groupMetadata.announce),
-    }));
+  let result;
+  try {
+    result = await c.pupPage.evaluate(() => {
+      const groups = [];
+      const errors = [];
+      const chats = window.require('WAWebCollections').Chat.getModelsArray();
+      for (const chat of chats) {
+        try {
+          if (!chat || !chat.id || chat.id.server !== 'g.us') continue;
+          const meta = chat.groupMetadata;
+          if (meta && meta.isParentGroup) continue; // community "parent": you cannot post there
+          const parts = meta && meta.participants;
+          let count = null;
+          if (parts) {
+            if (typeof parts.getModelsArray === 'function') count = parts.getModelsArray().length;
+            else if (typeof parts.length === 'number') count = parts.length;
+          }
+          groups.push({
+            groupId: chat.id._serialized,
+            name: chat.formattedTitle || chat.name || (meta && meta.subject) || chat.id.user,
+            participantsCount: count,
+            adminsOnly: Boolean(meta && meta.announce),
+          });
+        } catch (e) {
+          errors.push(String((e && e.message) || e));
+        }
+      }
+      return { groups, errors, total: chats.length };
+    });
+  } catch (err) {
+    console.error('[whatsapp] reading groups failed:', err);
+    throw new Error(explain(err));
+  }
+  if (result.errors.length) {
+    console.warn(`[whatsapp] skipped ${result.errors.length} chat(s) while reading groups: ${result.errors.slice(0, 3).join(' | ')}`);
+  }
+  console.log(`[whatsapp] found ${result.groups.length} groups among ${result.total} chats`);
+  return result.groups;
 }
 
 // Send an image with a caption (or just text if there is no image) to a chat or group.
 async function send(chatId, imageFile, caption) {
   const c = requireReady();
+  if (!imageFile && !caption) throw new Error('Nothing to send: no image or caption');
   let result;
-  if (imageFile) {
-    const media = MessageMedia.fromFilePath(imageFile);
-    result = await c.sendMessage(chatId, media, { caption: caption || undefined, sendSeen: false });
-  } else if (caption) {
-    result = await c.sendMessage(chatId, caption, { sendSeen: false });
-  } else {
-    throw new Error('Nothing to send: no image or caption');
+  try {
+    if (imageFile) {
+      const media = MessageMedia.fromFilePath(imageFile);
+      result = await c.sendMessage(chatId, media, { caption: caption || undefined, sendSeen: false });
+    } else {
+      result = await c.sendMessage(chatId, caption, { sendSeen: false });
+    }
+  } catch (err) {
+    console.error(`[whatsapp] send to ${chatId} failed:`, err);
+    throw new Error(explain(err));
   }
   if (!result) throw new Error('WhatsApp did not accept the message (chat not found or no permission to post)');
   return result;
