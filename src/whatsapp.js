@@ -181,6 +181,19 @@ async function listGroups() {
 async function send(chatId, imageFile, caption) {
   const c = requireReady();
   if (!imageFile && !caption) throw new Error('Nothing to send: no image or caption');
+  const exists = await c.pupPage.evaluate((id) => {
+    try {
+      const { Chat } = window.require('WAWebCollections');
+      return Boolean(Chat.get(id));
+    } catch (e) {
+      return true; // cannot check; let sendMessage try
+    }
+  }, chatId).catch(() => true);
+  if (!exists) {
+    throw new Error(chatId.endsWith('@g.us')
+      ? 'Group not found in WhatsApp. You may have left it; reload groups on the Groups page.'
+      : 'Chat not found in WhatsApp. On your phone, open the "Message yourself" chat and send any message once, then try again.');
+  }
   let result;
   try {
     if (imageFile) {
@@ -197,14 +210,32 @@ async function send(chatId, imageFile, caption) {
   return result;
 }
 
-function selfChatId() {
+// My own "Message yourself" chat. Newer accounts have two IDs (phone number and LID);
+// use whichever one WhatsApp Web actually has a chat for.
+async function selfChatId() {
   const c = requireReady();
-  return c.info.wid._serialized;
+  let id = null;
+  try {
+    id = await c.pupPage.evaluate(() => {
+      const { getMaybeMePnUser, getMaybeMeLidUser } = window.require('WAWebUserPrefsMeUser');
+      const { Chat } = window.require('WAWebCollections');
+      const ids = [getMaybeMeLidUser(), getMaybeMePnUser()].filter(Boolean);
+      for (const wid of ids) {
+        const chat = Chat.get(wid);
+        if (chat) return chat.id._serialized;
+      }
+      const pn = getMaybeMePnUser();
+      return pn ? pn._serialized : null;
+    });
+  } catch (err) {
+    console.warn('[whatsapp] could not look up own chat:', err.message);
+  }
+  return id || c.info.wid._serialized;
 }
 
 // Message my own number ("Message yourself" chat).
 async function sendToSelf(imageFile, caption) {
-  return send(selfChatId(), imageFile, caption);
+  return send(await selfChatId(), imageFile, caption);
 }
 
 module.exports = { start, destroy, logout, getState, isReady, listGroups, send, sendToSelf };
