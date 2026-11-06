@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const QRCode = require('qrcode');
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const config = require('./config');
@@ -213,6 +215,10 @@ async function send(chatId, imageFile, caption) {
       ? 'Group not found in WhatsApp. You may have left it; reload groups on the Groups page.'
       : 'Chat not found in WhatsApp. On your phone, open the "Message yourself" chat and send any message once, then try again.');
   }
+  const what = imageFile
+    ? `image ${path.basename(imageFile)} (${Math.round(fs.statSync(imageFile).size / 1024)} KB)${caption ? ' + caption' : ''}`
+    : 'text only';
+  console.log(`[whatsapp] sending ${what} to ${chatId}`);
   let result;
   try {
     if (imageFile) {
@@ -225,7 +231,15 @@ async function send(chatId, imageFile, caption) {
     console.error(`[whatsapp] send to ${chatId} failed:`, err);
     throw new Error(explain(err));
   }
-  if (!result) throw new Error('WhatsApp did not accept the message (chat not found or no permission to post)');
+  if (!result) {
+    // The send went through without an error, but WhatsApp Web did not hand the message back.
+    // The chat exists (checked above), so treat it as sent.
+    console.warn(`[whatsapp] sent to ${chatId}, but WhatsApp did not confirm it; counting it as sent`);
+    return null;
+  }
+  if (imageFile && result.hasMedia === false) {
+    throw new Error('The caption was sent, but WhatsApp dropped the image');
+  }
   return result;
 }
 

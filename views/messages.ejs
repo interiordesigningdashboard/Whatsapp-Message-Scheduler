@@ -17,6 +17,7 @@
           <td><%= t.prettyDateTime(t.parse(m.send_at)) %></td>
           <td>
             <strong><%= m.title %></strong>
+            <% if (m.image_path) { %><span class="tag tag-ok" title="Has an image">🖼 image</span><% } else if (m.status === 'pending') { %><span class="tag" title="No image attached; only the caption will be sent">text only</span><% } %>
             <% if (m.caption) { %><br><span class="muted clip"><%= m.caption %></span><% } %>
           </td>
           <td><%= m.groupIds.length %></td>
