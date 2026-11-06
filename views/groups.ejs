@@ -1,0 +1,33 @@
+<%- include('partials/header', { title: 'Groups' }) %>
+
+<h1>Groups</h1>
+
+<section class="card">
+  <form method="post" action="/groups/sync" class="inline">
+    <button class="btn" type="submit" <%= waReady ? '' : 'disabled' %>>Load groups from WhatsApp</button>
+  </form>
+  <% if (!waReady) { %><span class="muted">Connect WhatsApp on the <a href="/">Status</a> page first.</span><% } %>
+  <p class="muted">Loads every group you are a member of. Click again after joining or leaving a group.</p>
+</section>
+
+<section class="card">
+  <% if (!groups.length) { %>
+    <p class="muted">No groups loaded yet.</p>
+  <% } else { %>
+    <p class="muted"><%= groups.length %> groups, last loaded <%= groups[0].last_synced_at %>.</p>
+    <table>
+      <thead><tr><th>Name</th><th>Members</th><th></th></tr></thead>
+      <tbody>
+      <% groups.forEach((g) => { %>
+        <tr>
+          <td><%= g.name %></td>
+          <td><%= g.participants_count ?? '' %></td>
+          <td><% if (g.admins_only) { %><span class="tag tag-warn">only admins can post</span><% } %></td>
+        </tr>
+      <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+</section>
+
+<%- include('partials/footer') %>

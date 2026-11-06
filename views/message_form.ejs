@@ -1,0 +1,38 @@
+<%- include('partials/header', { title: message ? 'Edit message' : 'Schedule a message' }) %>
+
+<h1><%= message ? 'Edit message' : 'Schedule a message' %></h1>
+
+<form method="post" action="<%= message ? '/messages/' + message.id : '/messages' %>" enctype="multipart/form-data" class="card form">
+  <label>Title (only for you, not sent)
+    <input type="text" name="title" value="<%= form.title %>" required maxlength="100" autofocus>
+  </label>
+
+  <label>Send at (India time)
+    <input type="datetime-local" name="send_at" value="<%= form.sendAtInput %>" required>
+  </label>
+
+  <% if (message && message.image_path) { %>
+    <div class="preview"><img src="/uploads/<%= message.image_path %>" alt="Current image"></div>
+    <label class="check"><input type="checkbox" name="remove_image" value="1"> Remove this image</label>
+    <label>Replace image (optional)
+      <input type="file" name="image" accept="image/jpeg,image/png,image/webp">
+    </label>
+  <% } else { %>
+    <label>Image (optional)
+      <input type="file" name="image" accept="image/jpeg,image/png,image/webp">
+    </label>
+  <% } %>
+
+  <label>Caption
+    <textarea name="caption" rows="6" maxlength="4000"><%= form.caption %></textarea>
+  </label>
+
+  <%- include('partials/group_picker', { allGroups, groupIds }) %>
+
+  <div class="buttons">
+    <button class="btn" type="submit">Save</button>
+    <a href="/messages" class="btn btn-secondary">Cancel</a>
+  </div>
+</form>
+
+<%- include('partials/footer') %>

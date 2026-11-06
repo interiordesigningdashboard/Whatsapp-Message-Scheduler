@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= typeof title !== 'undefined' ? title + ' · ' : '' %>WhatsApp Scheduler</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <span class="brand">🎂 WhatsApp Scheduler</span>
+    <nav>
+      <% [['status', '/', 'Status'], ['birthdays', '/birthdays', 'Birthdays'], ['messages', '/messages', 'One-off messages'],
+          ['groups', '/groups', 'Groups'], ['history', '/history', 'History'], ['settings', '/settings', 'Settings']]
+         .forEach(([key, href, label]) => { %>
+        <a href="<%= href %>" class="<%= page === key ? 'active' : '' %>"><%= label %></a>
+      <% }) %>
+    </nav>
+  </header>
+  <main>
+  <% if (typeof flash !== 'undefined' && flash) { %>
+    <% if (flash.msg) { %><div class="flash flash-ok"><%= flash.msg %></div><% } %>
+    <% if (flash.err) { %><div class="flash flash-err"><%= flash.err %></div><% } %>
+  <% } %>
+  <% if (typeof errors !== 'undefined' && errors.length) { %>
+    <div class="flash flash-err"><ul><% errors.forEach((e) => { %><li><%= e %></li><% }) %></ul></div>
+  <% } %>

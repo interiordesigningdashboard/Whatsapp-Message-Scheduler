@@ -1,0 +1,111 @@
+<%- include('partials/header', { title: 'Status' }) %>
+
+<h1>Status</h1>
+
+<section class="card" id="wa-card">
+  <h2>WhatsApp connection</h2>
+  <p>
+    <span id="wa-badge" class="badge badge-<%= wa.status %>"><%= wa.status %></span>
+    <span id="wa-text"></span>
+  </p>
+
+  <div id="wa-qr" class="qr" hidden>
+    <p>On your phone, open <strong>WhatsApp → Settings → Linked devices → Link a device</strong> and scan this code:</p>
+    <img id="wa-qr-img" alt="WhatsApp QR code">
+  </div>
+
+  <p id="wa-error" class="error" hidden></p>
+
+  <form id="wa-logout" method="post" action="/whatsapp/logout" hidden
+        onsubmit="return confirm('Unlink this PC from WhatsApp? You will need to scan the QR code again.')">
+    <button type="submit" class="btn btn-secondary">Unlink this PC</button>
+  </form>
+</section>
+
+<% if (needContent.length) { %>
+<section class="card card-warn">
+  <h2>Needs an image or caption</h2>
+  <ul class="plain">
+    <% needContent.forEach(({ b, next, inDays }) => { %>
+      <li>
+        <a href="/birthdays/<%= b.id %>/content"><strong><%= b.name %></strong></a>:
+        <%= t.prettyDate(next.date) %> at <%= b.send_time %>
+        (<%= inDays === 0 ? 'today' : inDays === 1 ? 'tomorrow' : 'in ' + inDays + ' days' %>)
+      </li>
+    <% }) %>
+  </ul>
+</section>
+<% } %>
+
+<section class="card">
+  <h2>Next sends</h2>
+  <% if (!upcoming.length) { %>
+    <p class="muted">Nothing scheduled. <a href="/birthdays/new">Add a birthday</a> or <a href="/messages/new">schedule a message</a>.</p>
+  <% } else { %>
+    <table>
+      <thead><tr><th>When</th><th>What</th><th>Groups</th><th>Content</th></tr></thead>
+      <tbody>
+      <% upcoming.forEach((u) => { %>
+        <tr>
+          <td><%= t.prettyDateTime(u.when) %></td>
+          <td><span class="muted"><%= u.kind %>:</span> <a href="<%= u.url %>"><%= u.label %></a></td>
+          <td><%= u.groups %></td>
+          <td><% if (u.hasContent) { %><span class="tag tag-ok">ready</span><% } else { %><a class="tag tag-warn" href="<%= u.url %>">needs content</a><% } %></td>
+        </tr>
+      <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+  <% if (!groupCount) { %>
+    <p class="muted">Tip: once WhatsApp is connected, load your groups on the <a href="/groups">Groups</a> page.</p>
+  <% } %>
+</section>
+
+<script>
+  const TEXT = {
+    disabled: 'WhatsApp is turned off (WA_DISABLED=1).',
+    starting: 'Starting WhatsApp… this can take a few minutes on big accounts.',
+    qr: 'Waiting for you to scan the QR code.',
+    authenticating: 'Logged in. Loading your chats… (can take several minutes the first time, please wait)',
+    ready: '',
+    disconnected: 'Connection lost. Reconnecting in a few seconds…',
+    error: 'Something went wrong. Retrying in 30 seconds…',
+  };
+
+  function render(s) {
+    const badge = document.getElementById('wa-badge');
+    badge.textContent = s.status;
+    badge.className = 'badge badge-' + s.status;
+
+    let text = TEXT[s.status] || '';
+    if ((s.status === 'starting' || s.status === 'authenticating') && s.loading) {
+      text += ' Loading: ' + s.loading;
+    }
+    if (s.status === 'ready' && s.me) {
+      text = 'Connected as ' + (s.me.name || '') + (s.me.number ? ' (+' + s.me.number + ')' : '');
+    }
+    document.getElementById('wa-text').textContent = text;
+
+    const qr = document.getElementById('wa-qr');
+    qr.hidden = !(s.status === 'qr' && s.qrDataUrl);
+    if (!qr.hidden) document.getElementById('wa-qr-img').src = s.qrDataUrl;
+
+    const err = document.getElementById('wa-error');
+    err.hidden = !s.lastError || s.status === 'ready';
+    err.textContent = s.lastError || '';
+
+    document.getElementById('wa-logout').hidden = s.status !== 'ready';
+  }
+
+  async function poll() {
+    try {
+      const res = await fetch('/api/status');
+      render(await res.json());
+    } catch (e) { /* server restarting */ }
+  }
+
+  render(<%- JSON.stringify({ status: wa.status, qrDataUrl: wa.qrDataUrl, me: wa.me, lastError: wa.lastError, loading: wa.loading }) %>);
+  setInterval(poll, 3000);
+</script>
+
+<%- include('partials/footer') %>

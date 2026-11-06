@@ -1,0 +1,39 @@
+<%- include('partials/header', { title: 'Settings' }) %>
+
+<h1>Settings</h1>
+
+<form method="post" action="/settings" class="card form">
+  <h2>Sending</h2>
+  <div class="row">
+    <label>Wait between groups: from (seconds)
+      <input type="number" name="delay_min_sec" min="0" max="300" value="<%= s.delay_min_sec %>" required>
+    </label>
+    <label>to (seconds)
+      <input type="number" name="delay_max_sec" min="0" max="300" value="<%= s.delay_max_sec %>" required>
+    </label>
+  </div>
+  <p class="muted">A random pause between groups makes the sending look less like a bot. Keep at least a few seconds.</p>
+
+  <label>Grace period (minutes)
+    <input type="number" name="grace_minutes" min="1" max="60" value="<%= s.grace_minutes %>" required>
+  </label>
+  <p class="muted">If the app or WhatsApp is not ready at the send time, it keeps trying for this long. After that the message is marked missed and is never sent late.</p>
+
+  <h2>Messages to myself</h2>
+  <label class="check">
+    <input type="checkbox" name="self_alert_enabled" value="1" <%= s.self_alert_enabled === '1' ? 'checked' : '' %>>
+    Send me a WhatsApp message with the results of each send, missed messages and reminders
+  </label>
+  <div class="row">
+    <label>Remind me about birthdays with no image or caption, this many days ahead
+      <input type="number" name="reminder_days_ahead" min="0" max="60" value="<%= s.reminder_days_ahead %>" required>
+    </label>
+    <label>Reminder time (daily)
+      <input type="time" name="reminder_time" value="<%= s.reminder_time %>" required>
+    </label>
+  </div>
+
+  <div class="buttons"><button class="btn" type="submit">Save</button></div>
+</form>
+
+<%- include('partials/footer') %>

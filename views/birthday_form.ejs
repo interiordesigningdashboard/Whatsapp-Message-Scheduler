@@ -1,0 +1,49 @@
+<%- include('partials/header', { title: birthday ? 'Edit birthday' : 'Add birthday' }) %>
+
+<h1><%= birthday ? 'Edit ' + birthday.name : 'Add birthday' %></h1>
+
+<form method="post" action="<%= birthday ? '/birthdays/' + birthday.id : '/birthdays' %>" class="card form">
+  <label>Name
+    <input type="text" name="name" value="<%= form.name %>" required maxlength="100" autofocus>
+  </label>
+
+  <div class="row">
+    <label>Birthday: day
+      <select name="day" required>
+        <option value="">Day</option>
+        <% for (let d = 1; d <= 31; d++) { %><option value="<%= d %>" <%= Number(form.day) === d ? 'selected' : '' %>><%= d %></option><% } %>
+      </select>
+    </label>
+    <label>Month
+      <select name="month" required>
+        <option value="">Month</option>
+        <% months.forEach((m, i) => { %><option value="<%= i + 1 %>" <%= Number(form.month) === i + 1 ? 'selected' : '' %>><%= m %></option><% }) %>
+      </select>
+    </label>
+    <label>Send time (India time)
+      <input type="time" name="send_time" value="<%= form.sendTime %>" required>
+    </label>
+  </div>
+  <p class="muted">Sent every year on this day. 29 February birthdays are sent on 28 February in non-leap years.</p>
+
+  <%- include('partials/group_picker', { allGroups, groupIds }) %>
+
+  <label class="check">
+    <input type="checkbox" name="active" value="1" <%= form.active ? 'checked' : '' %>>
+    Active (untick to pause without deleting)
+  </label>
+
+  <div class="buttons">
+    <button class="btn" type="submit">Save</button>
+    <a href="/birthdays" class="btn btn-secondary">Cancel</a>
+  </div>
+</form>
+
+<% if (birthday) { %>
+<form method="post" action="/birthdays/<%= birthday.id %>/delete" class="danger-zone"
+      onsubmit="return confirm('Delete <%= birthday.name.replace(/['\\]/g, '') %>? This cannot be undone.')">
+  <button class="btn btn-danger" type="submit">Delete this birthday</button>
+</form>
+<% } %>
+
+<%- include('partials/footer') %>
