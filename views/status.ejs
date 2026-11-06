@@ -64,12 +64,12 @@
 <script>
   const TEXT = {
     disabled: 'WhatsApp is turned off (WA_DISABLED=1).',
-    starting: 'Starting WhatsApp… this can take up to a minute.',
+    starting: 'Starting WhatsApp… this can take a few minutes on big accounts.',
     qr: 'Waiting for you to scan the QR code.',
-    authenticating: 'QR scanned. Loading your chats…',
+    authenticating: 'Logged in. Loading your chats… (can take several minutes the first time, please wait)',
     ready: '',
     disconnected: 'Connection lost. Reconnecting in a few seconds…',
-    error: 'Something went wrong. Retrying in a few seconds…',
+    error: 'Something went wrong. Retrying in 30 seconds…',
   };
 
   function render(s) {
@@ -78,6 +78,9 @@
     badge.className = 'badge badge-' + s.status;
 
     let text = TEXT[s.status] || '';
+    if ((s.status === 'starting' || s.status === 'authenticating') && s.loading) {
+      text += ' Loading: ' + s.loading;
+    }
     if (s.status === 'ready' && s.me) {
       text = 'Connected as ' + (s.me.name || '') + (s.me.number ? ' (+' + s.me.number + ')' : '');
     }
@@ -101,7 +104,7 @@
     } catch (e) { /* server restarting */ }
   }
 
-  render(<%- JSON.stringify({ status: wa.status, qrDataUrl: wa.qrDataUrl, me: wa.me, lastError: wa.lastError }) %>);
+  render(<%- JSON.stringify({ status: wa.status, qrDataUrl: wa.qrDataUrl, me: wa.me, lastError: wa.lastError, loading: wa.loading }) %>);
   setInterval(poll, 3000);
 </script>
 

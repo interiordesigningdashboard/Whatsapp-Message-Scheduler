@@ -15,6 +15,7 @@ const state = {
   qrDataUrl: null,
   me: null, // { number, name }
   lastError: null,
+  loading: null, // e.g. "45% WhatsApp" while WhatsApp Web loads
   since: new Date(),
 };
 
@@ -29,10 +30,25 @@ function setStatus(status, extra = {}) {
 function createClient() {
   const c = new Client({
     authStrategy: new LocalAuth({ dataPath: config.waAuthDir }),
+    // WhatsApp Web can take several minutes to load on big accounts (first sync after linking,
+    // thousands of chats). Puppeteer's default 3-minute limit per step is too short for that.
+    authTimeoutMs: 180000,
+    webVersionCache: { type: 'local', path: config.waCacheDir },
     puppeteer: {
       headless: true,
+      protocolTimeout: 10 * 60 * 1000,
+      // Let the app close Chrome itself on Ctrl+C. If Puppeteer kills Chrome first,
+      // the saved WhatsApp login can be left half-written and the next start hangs.
+      handleSIGINT: false,
+      handleSIGTERM: false,
+      handleSIGHUP: false,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     },
+  });
+
+  c.on('loading_screen', (percent, message) => {
+    state.loading = `${percent}%${message ? ` ${message}` : ''}`;
+    console.log(`[whatsapp] loading ${state.loading}`);
   });
 
   c.on('qr', async (qr) => {
@@ -54,6 +70,7 @@ function createClient() {
   c.on('ready', () => {
     const info = c.info || {};
     setStatus('ready', {
+      loading: null,
       qrDataUrl: null,
       lastError: null,
       me: { number: info.wid ? info.wid.user : null, name: info.pushname || null },
@@ -71,7 +88,7 @@ function createClient() {
 async function start() {
   if (config.waDisabled) return;
   clearTimeout(restartTimer);
-  setStatus('starting', { qrDataUrl: null });
+  setStatus('starting', { qrDataUrl: null, loading: null });
   client = createClient();
   try {
     await client.initialize();
@@ -81,7 +98,8 @@ async function start() {
   }
 }
 
-function scheduleRestart(delayMs = 10000) {
+// Wait 30 s before retrying, so a slow WhatsApp Web load is not interrupted again straight away.
+function scheduleRestart(delayMs = 30000) {
   clearTimeout(restartTimer);
   restartTimer = setTimeout(async () => {
     await destroy();
@@ -90,6 +108,7 @@ function scheduleRestart(delayMs = 10000) {
 }
 
 async function destroy() {
+  clearTimeout(restartTimer);
   const c = client;
   client = null;
   if (!c) return;

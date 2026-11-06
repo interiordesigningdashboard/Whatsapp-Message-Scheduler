@@ -54,11 +54,16 @@ const server = app.listen(config.port, config.host, () => {
 wa.start();
 scheduler.start();
 
+let shuttingDown = false;
 async function shutdown() {
-  console.log('Shutting down...');
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log('Shutting down... (closing WhatsApp, please wait)');
   scheduler.stop();
   server.close();
-  await wa.destroy();
+  // Close Chrome properly so the WhatsApp login is saved; give up after 15 s.
+  await Promise.race([wa.destroy(), new Promise((r) => setTimeout(r, 15000))]);
+  console.log('Stopped.');
   process.exit(0);
 }
 process.on('SIGINT', shutdown);

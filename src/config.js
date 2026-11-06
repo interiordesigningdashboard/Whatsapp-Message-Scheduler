@@ -15,6 +15,7 @@ module.exports = {
   dbPath: path.join(dataDir, 'app.db'),
   uploadsDir: path.join(dataDir, 'uploads'),
   waAuthDir: path.join(dataDir, '.wwebjs_auth'),
+  waCacheDir: path.join(dataDir, '.wwebjs_cache'),
   // Set WA_DISABLED=1 to run the dashboard without starting WhatsApp (useful for testing).
   waDisabled: process.env.WA_DISABLED === '1',
 };
