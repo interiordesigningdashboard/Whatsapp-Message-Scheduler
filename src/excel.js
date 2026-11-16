@@ -160,8 +160,11 @@ function buildWorkbook({ payments, birthdays, withIds = true } = {}) {
   wb.creator = 'WhatsApp Scheduler';
   wb.created = new Date();
   const names = models.groupNames();
-  const pays = payments || models.listPayments();
-  const bdays = birthdays || models.listBirthdays();
+  // In the order they were added (an import adds rows in file order), so the file keeps its order
+  // through export -> edit -> import.
+  const byId = (a, b) => (a.id || 0) - (b.id || 0);
+  const pays = payments || models.listPayments().sort(byId);
+  const bdays = birthdays || models.listBirthdays().sort(byId);
   addSheet(wb, PAYMENT_SHEET, PAYMENT_COLS, pays.map((p) => paymentRow(p, { withIds })), { repeats: REPEATS, active: YES_NO });
   addSheet(wb, BIRTHDAY_SHEET, BIRTHDAY_COLS, bdays.map((b) => birthdayRow(b, names, { withIds })), { month: t.MONTHS, active: YES_NO });
   addHelpSheet(wb);
