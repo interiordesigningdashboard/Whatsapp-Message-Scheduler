@@ -198,8 +198,79 @@ async function listGroups() {
   return result.groups;
 }
 
+// My saved WhatsApp contacts that have a phone number: [{ name, phone }] (phone = digits with country code).
+// Read straight from WhatsApp Web's memory; a contact that errors is skipped.
+async function listContacts() {
+  const c = requireReady();
+  let result;
+  try {
+    result = await c.pupPage.evaluate(() => {
+      const out = [];
+      const errors = [];
+      const { Contact } = window.require('WAWebCollections');
+      let getters = {};
+      try { getters = window.require('WAWebContactGetters'); } catch (e) { /* older WhatsApp Web */ }
+      let isMyContact = null;
+      try { isMyContact = window.require('WAWebFrontendContactGetters').getIsMyContact; } catch (e) { /* ignore */ }
+      const call = (fn, contact) => { try { return fn ? fn(contact) : undefined; } catch (e) { return undefined; } };
+      for (const contact of Contact.getModelsArray()) {
+        try {
+          if (!contact || !contact.id) continue;
+          const server = contact.id.server;
+          if (server !== 'c.us' && server !== 'lid') continue;
+          const mine = isMyContact ? call(isMyContact, contact) : contact.isMyContact;
+          if (!mine) continue;
+          if (call(getters.getIsMe, contact)) continue;
+          let number = server === 'c.us' ? contact.id.user : (contact.phoneNumber && contact.phoneNumber.user);
+          if (!number) continue;
+          const name = call(getters.getName, contact) || contact.name || call(getters.getPushname, contact) || contact.pushname;
+          if (!name) continue;
+          out.push({ name: String(name), phone: String(number) });
+        } catch (e) {
+          errors.push(String((e && e.message) || e));
+        }
+      }
+      return { contacts: out, errors };
+    });
+  } catch (err) {
+    console.error('[whatsapp] reading contacts failed:', err);
+    throw new Error(explain(err));
+  }
+  if (result.errors.length) console.warn(`[whatsapp] skipped ${result.errors.length} contact(s): ${result.errors.slice(0, 3).join(' | ')}`);
+  console.log(`[whatsapp] found ${result.contacts.length} contacts`);
+  return result.contacts;
+}
+
+// The chat id for a phone number (digits with country code), or an error if the number is not on WhatsApp.
+async function chatIdForNumber(phone) {
+  const c = requireReady();
+  let id;
+  try {
+    id = await c.pupPage.evaluate(async (number) => {
+      const wid = window.require('WAWebWidFactory').createWid(`${number}@c.us`);
+      const res = await window.require('WAWebQueryExistsJob').queryWidExists(wid);
+      if (!res || !res.wid) return null;
+      const w = res.wid;
+      return w._serialized || w.$1 || (typeof w.toString === 'function' ? w.toString() : null);
+    }, phone);
+  } catch (err) {
+    console.error(`[whatsapp] checking number ${phone} failed:`, err);
+    throw new Error(explain(err));
+  }
+  if (!id) throw new Error(`The number +${phone} is not on WhatsApp`);
+  return id;
+}
+
+// Send text (and optionally an image) to a person's private chat by phone number.
+async function sendToNumber(phone, imageFile, caption) {
+  const chatId = await chatIdForNumber(phone);
+  return send(chatId, imageFile, caption, { allowNewChat: true });
+}
+
 // Send an image with a caption (or just text if there is no image) to a chat or group.
-async function send(chatId, imageFile, caption) {
+// options.allowNewChat: a private chat that does not exist yet is created by WhatsApp (used for numbers
+// already checked with chatIdForNumber). Otherwise the chat or group must already exist.
+async function send(chatId, imageFile, caption, options = {}) {
   const c = requireReady();
   if (!imageFile && !caption) throw new Error('Nothing to send: no image or caption');
   const exists = await c.pupPage.evaluate((id) => {
@@ -210,7 +281,7 @@ async function send(chatId, imageFile, caption) {
       return true; // cannot check; let sendMessage try
     }
   }, chatId).catch(() => true);
-  if (!exists) {
+  if (!exists && !options.allowNewChat) {
     throw new Error(chatId.endsWith('@g.us')
       ? 'Group not found in WhatsApp. You may have left it; reload groups on the Groups page.'
       : 'Chat not found in WhatsApp. On your phone, open the "Message yourself" chat and send any message once, then try again.');
@@ -279,4 +350,4 @@ async function sendToSelf(imageFile, caption) {
   throw lastErr;
 }
 
-module.exports = { start, destroy, logout, getState, isReady, listGroups, send, sendToSelf };
+module.exports = { start, destroy, logout, getState, isReady, listGroups, listContacts, send, sendToSelf, sendToNumber };

@@ -1,6 +1,6 @@
-<%- include('partials/header', { title: 'Groups' }) %>
+<%- include('partials/header', { title: 'Groups & contacts' }) %>
 
-<h1>Groups</h1>
+<h1>Groups &amp; contacts</h1>
 
 <section class="card">
   <form method="post" action="/groups/sync" class="inline">
@@ -27,6 +27,26 @@
       <% }) %>
       </tbody>
     </table>
+  <% } %>
+</section>
+
+<h2>Contacts</h2>
+<section class="card">
+  <form method="post" action="/contacts/sync" class="inline">
+    <button class="btn" type="submit" <%= waReady ? '' : 'disabled' %>>Load contacts from WhatsApp</button>
+  </form>
+  <p class="muted">Used to pick a person on the Payments form. Only contacts saved in your phone are loaded. You can always type a number instead.</p>
+  <% if (contacts.length) { %>
+    <p class="muted"><%= contacts.length %> contacts, last loaded <%= contacts[0].last_synced_at %>.</p>
+    <details>
+      <summary>Show contacts</summary>
+      <table>
+        <thead><tr><th>Name</th><th>Number</th></tr></thead>
+        <tbody>
+        <% contacts.forEach((c) => { %><tr><td><%= c.name %></td><td>+<%= c.phone %></td></tr><% }) %>
+        </tbody>
+      </table>
+    </details>
   <% } %>
 </section>
 

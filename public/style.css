@@ -121,6 +121,7 @@ td.actions > * { margin-right: 10px; }
 
 .form label { display: block; margin-bottom: 14px; font-weight: 600; }
 .form input[type=text], .form input[type=time], .form input[type=number], .form input[type=datetime-local],
+.form input[type=date], .form input[type=tel], .form input[type=search],
 .form select, .form textarea, .search input, .filters input, .filters select, .group-search {
   display: block; width: 100%; margin-top: 4px; padding: 8px 10px; font: inherit; font-weight: 400;
   border: 1px solid var(--border); border-radius: 6px; background: #fff;
@@ -150,3 +151,11 @@ form.inline { display: inline; margin-right: 8px; }
 .group-item[hidden] { display: none !important; }
 
 .preview img { max-width: 320px; max-height: 320px; border-radius: 8px; border: 1px solid var(--border); display: block; margin-bottom: 12px; }
+
+input.tiny { display: inline-block !important; width: 70px !important; margin: 0 4px !important; padding: 4px 6px !important; }
+.form label.check input[type=radio] { width: auto; }
+code { background: #eef2f0; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+.preview-box { margin-bottom: 14px; }
+.bubble { background: #dcf8c6; border-radius: 8px; padding: 8px 12px; margin: 4px 0 10px; white-space: pre-wrap; max-width: 520px; min-height: 1.5em; }
+details summary { cursor: pointer; color: var(--accent); margin-bottom: 8px; }
+.form h2 { margin-top: 18px; }

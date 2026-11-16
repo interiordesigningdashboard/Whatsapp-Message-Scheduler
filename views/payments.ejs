@@ -1,0 +1,44 @@
+<%- include('partials/header', { title: 'Payment reminders' }) %>
+
+<div class="page-head">
+  <h1>Payment reminders</h1>
+  <a class="btn" href="/payments/new">+ Add payment reminder</a>
+</div>
+<p class="muted">EMI, insurance and other dues. Sent to the person's own WhatsApp chat every day from a few days before the due date until the due date.</p>
+
+<section class="card">
+  <% if (!rows.length) { %>
+    <p class="muted">No payment reminders yet.</p>
+  <% } else { %>
+    <table>
+      <thead><tr><th>Payment</th><th>Person</th><th>Repeats</th><th>Next due</th><th>Next reminder</th><th></th></tr></thead>
+      <tbody>
+      <% rows.forEach((p) => { %>
+        <tr class="<%= p.active && !p.ended ? '' : 'inactive' %>">
+          <td>
+            <strong><%= p.title %></strong>
+            <% if (p.amount) { %><br><span class="muted">₹<%= pay.formatAmount(p.amount) %></span><% } %>
+            <% if (!p.active) { %> <span class="tag">paused</span><% } %>
+            <% if (p.ended) { %> <span class="tag">ended</span><% } %>
+          </td>
+          <td><%= p.person_name %><br><span class="muted"><%= pay.prettyPhone(p.phone) %></span></td>
+          <td><%= pay.describeRepeat(p) %><br><span class="muted"><%= pay.describeEnd(p) %></span></td>
+          <td><%= p.nextDue ? pay.shortDate(p.nextDue.date) : '-' %></td>
+          <td>
+            <% if (p.next) { %>
+              <%= t.prettyDateTime(p.next.at) %><br>
+              <span class="muted"><%= p.remind_days_before ? 'daily from ' + p.remind_days_before + ' day' + (p.remind_days_before > 1 ? 's' : '') + ' before' : 'on the due date' %></span>
+            <% } else { %>-<% } %>
+          </td>
+          <td class="actions">
+            <a href="/payments/<%= p.id %>/edit">Edit</a>
+            <form method="post" action="/payments/<%= p.id %>/test" class="inline"><button class="link" type="submit">Test to me</button></form>
+          </td>
+        </tr>
+      <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+</section>
+
+<%- include('partials/footer') %>

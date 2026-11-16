@@ -87,6 +87,50 @@ const MIGRATIONS = [
   `,
   // 2: remember whether a group only lets admins post
   `ALTER TABLE wa_groups ADD COLUMN admins_only INTEGER NOT NULL DEFAULT 0;`,
+  // 3: payment reminders (EMI, insurance...) sent to a person's private chat, and WhatsApp contacts.
+  `
+  CREATE TABLE payments (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    title              TEXT    NOT NULL,             -- 'Car EMI'
+    person_name        TEXT    NOT NULL,
+    phone              TEXT    NOT NULL,             -- digits with country code, e.g. '919876543210'
+    amount             TEXT,                         -- as typed, e.g. '5000'
+    every_months       INTEGER NOT NULL CHECK (every_months BETWEEN 1 AND 120), -- 1 monthly, 3 quarterly, 12 yearly
+    first_due_date     TEXT    NOT NULL,             -- 'YYYY-MM-DD'; its day is the due day each time
+    remind_days_before INTEGER NOT NULL DEFAULT 2 CHECK (remind_days_before BETWEEN 0 AND 30),
+    send_time          TEXT    NOT NULL,             -- 'HH:MM' IST
+    end_count          INTEGER,                      -- stop after this many payments (optional)
+    end_date           TEXT,                         -- no due dates after this day (optional)
+    message            TEXT    NOT NULL,             -- template with {name} {title} {amount} {due_date} {days_left}
+    active             INTEGER NOT NULL DEFAULT 1,
+    created_at         TEXT    NOT NULL,
+    updated_at         TEXT    NOT NULL
+  );
+
+  CREATE TABLE wa_contacts (
+    phone          TEXT PRIMARY KEY,                 -- digits with country code
+    name           TEXT NOT NULL,
+    last_synced_at TEXT NOT NULL
+  );
+
+  -- send_log gets a third job type; SQLite cannot change a CHECK, so rebuild the table.
+  CREATE TABLE send_log_new (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_type      TEXT NOT NULL CHECK (job_type IN ('birthday', 'oneoff', 'payment')),
+    job_id        INTEGER NOT NULL,
+    job_label     TEXT,
+    group_id      TEXT NOT NULL,                     -- group id, or the person's number for payments
+    group_name    TEXT,
+    scheduled_for TEXT NOT NULL,
+    status        TEXT NOT NULL CHECK (status IN ('sent', 'failed', 'missed')),
+    error         TEXT,
+    sent_at       TEXT,
+    UNIQUE (job_type, job_id, group_id, scheduled_for)
+  );
+  INSERT INTO send_log_new SELECT id, job_type, job_id, job_label, group_id, group_name, scheduled_for, status, error, sent_at FROM send_log;
+  DROP TABLE send_log;
+  ALTER TABLE send_log_new RENAME TO send_log;
+  `,
 ];
 
 function open() {

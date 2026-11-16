@@ -6,6 +6,7 @@ const models = require('./models');
 const uploads = require('./uploads');
 const wa = require('./whatsapp');
 const t = require('./time');
+const pay = require('./payments');
 
 const running = new Set();     // jobs currently queued or sending, e.g. "birthday:3:2026-11-12"
 let queue = Promise.resolve(); // jobs send one after another, never in parallel
@@ -81,6 +82,34 @@ function messageJob(m) {
   };
 }
 
+// Display name of a target: the group name, or the person for payment reminders.
+function nameOf(job, g, names) {
+  return job.targetName || names.get(g);
+}
+
+function paymentJob(p, at, due, daysLeft) {
+  const scheduledFor = t.ymdhm(at);
+  const caption = pay.renderMessage(p, due, daysLeft);
+  return {
+    key: `payment:${p.id}:${scheduledFor}`,
+    type: 'payment',
+    id: p.id,
+    label: `${p.title} (${p.person_name})`,
+    title: `💳 ${p.title}`,
+    targetName: `${p.person_name} (${pay.prettyPhone(p.phone)})`,
+    scheduledAt: at,
+    scheduledFor,
+    groupIds: [p.phone], // one target: the person's number
+    imageFile: null,
+    caption,
+    hasContent: true,
+    quietOnSuccess: true,
+    deliver: () => wa.sendToNumber(p.phone, null, caption),
+    logRows: () => models.paymentLogRows(p.id, scheduledFor),
+    finish: () => {},
+  };
+}
+
 function log(job, groupId, groupName, status, error) {
   return models.addLog({
     jobType: job.type, jobId: job.id, jobLabel: job.label, groupId, groupName,
@@ -95,7 +124,7 @@ function markMissed(job, reason, names) {
   if (!job.groupIds.length && done.size === 0) {
     log(job, '', null, 'missed', REASON_NO_GROUPS);
   }
-  for (const g of remaining) log(job, g, names.get(g), 'missed', reason);
+  for (const g of remaining) log(job, g, nameOf(job, g, names), 'missed', reason);
   job.finish();
   if (remaining.length || !job.groupIds.length) {
     alertSelf(`⚠️ ${job.title} (${t.prettyDateTime(job.scheduledAt)})\n${job.groupIds.length ? reason : REASON_NO_GROUPS}`);
@@ -128,16 +157,17 @@ async function sendJob(job) {
       await sleep(5000);
     }
     if (!wa.isReady()) {
-      log(job, g, names.get(g), 'missed', REASON_OFF);
+      log(job, g, nameOf(job, g, names), 'missed', REASON_OFF);
       results.push({ g, ok: false, error: 'WhatsApp disconnected' });
       continue;
     }
     try {
-      await wa.send(g, job.imageFile, job.caption);
-      log(job, g, names.get(g), 'sent');
+      if (job.deliver) await job.deliver(g);
+      else await wa.send(g, job.imageFile, job.caption);
+      log(job, g, nameOf(job, g, names), 'sent');
       results.push({ g, ok: true });
     } catch (err) {
-      log(job, g, names.get(g), 'failed', err.message);
+      log(job, g, nameOf(job, g, names), 'failed', err.message);
       results.push({ g, ok: false, error: err.message });
     }
     if (i < remaining.length - 1) await sleep(minDelay + Math.random() * (maxDelay - minDelay));
@@ -147,11 +177,19 @@ async function sendJob(job) {
 
   const ok = results.filter((r) => r.ok).length;
   const failed = results.filter((r) => !r.ok);
-  let text = `${job.title}: sent to ${ok}/${results.length} group${results.length === 1 ? '' : 's'}.`;
-  if (failed.length) {
-    text += `\nFailed:\n${failed.map((f) => `• ${names.get(f.g) || f.g}: ${f.error}`).join('\n')}`;
+  let text;
+  if (job.type === 'payment') {
+    text = failed.length
+      ? `⚠️ ${job.title}: reminder to ${job.targetName} FAILED: ${failed[0].error}`
+      : `${job.title}: reminder sent to ${job.targetName}.`;
+  } else {
+    text = `${job.title}: sent to ${ok}/${results.length} group${results.length === 1 ? '' : 's'}.`;
+    if (failed.length) {
+      text += `\nFailed:\n${failed.map((f) => `• ${names.get(f.g) || f.g}: ${f.error}`).join('\n')}`;
+    }
   }
-  alertSelf(text);
+  // Payment reminders only alert me when something went wrong.
+  if (!(job.quietOnSuccess && !failed.length)) alertSelf(text);
   console.log(`[scheduler] ${text.replace(/\n/g, ' | ')}`);
 }
 
@@ -222,6 +260,24 @@ function checkMessages(now, graceMs, names) {
   }
 }
 
+function checkPayments(now, graceMs, names) {
+  const today = t.startOfDay(now);
+  for (const p of models.listPayments()) {
+    if (!p.active) continue;
+    const created = t.parse(p.created_at);
+    // Yesterday too, so a late-evening reminder is marked missed if the app was off overnight.
+    for (const offset of [-1, 0]) {
+      const day = t.addDays(today, offset);
+      const r = pay.reminderOn(p, day);
+      if (!r) continue;
+      const at = t.atTime(day, p.send_time);
+      if (at > now) continue;
+      if (created && at < created) continue; // added after this reminder's time had passed
+      handleDue(paymentJob(p, at, r.due, r.daysLeft), now, graceMs, names);
+    }
+  }
+}
+
 // Birthdays in the next N days that still need an image or caption.
 function birthdaysNeedingContent(now, days) {
   const graceMinutes = Number(getSettings().grace_minutes);
@@ -261,6 +317,7 @@ async function tick() {
     const names = models.groupNames();
     checkBirthdays(now, graceMs, names);
     checkMessages(now, graceMs, names);
+    checkPayments(now, graceMs, names);
     checkReminder(now);
     await flushAlerts();
   } catch (err) {
@@ -306,6 +363,15 @@ function upcoming(now, limit) {
     items.push({
       when: t.parse(m.send_at), label: m.title, kind: 'One-off', url: `/messages/${m.id}/edit`,
       hasContent: Boolean(m.image_path || m.caption), groups: m.groupIds.length,
+    });
+  }
+  for (const p of models.listPayments()) {
+    if (!p.active) continue;
+    const next = pay.nextReminder(p, now, graceMinutes, (sf) => models.paymentLogRows(p.id, sf).length > 0);
+    if (!next) continue;
+    items.push({
+      when: next.at, label: `${p.title} → ${p.person_name} (due ${pay.shortDate(next.due)})`, kind: 'Payment',
+      url: `/payments/${p.id}/edit`, hasContent: true, groups: 'person',
     });
   }
   return items.sort((a, b) => a.when - b.when).slice(0, limit);

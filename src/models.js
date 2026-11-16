@@ -191,6 +191,56 @@ function messageLogRows(id) {
   return db.prepare(`SELECT * FROM send_log WHERE job_type = 'oneoff' AND job_id = ?`).all(id);
 }
 
+// ---------- Payment reminders ----------
+
+function listPayments() {
+  return db.prepare('SELECT * FROM payments ORDER BY title COLLATE NOCASE').all();
+}
+
+function getPayment(id) {
+  return db.prepare('SELECT * FROM payments WHERE id = ?').get(id);
+}
+
+const PAYMENT_FIELDS = ['title', 'person_name', 'phone', 'amount', 'every_months', 'first_due_date',
+  'remind_days_before', 'send_time', 'end_count', 'end_date', 'message', 'active'];
+
+function createPayment(f) {
+  const now = t.ymdhms(new Date());
+  const { lastInsertRowid } = db.prepare(`INSERT INTO payments (${PAYMENT_FIELDS.join(', ')}, created_at, updated_at)
+    VALUES (${PAYMENT_FIELDS.map(() => '?').join(', ')}, ?, ?)`)
+    .run(...PAYMENT_FIELDS.map((k) => f[k]), now, now);
+  return Number(lastInsertRowid);
+}
+
+function updatePayment(id, f) {
+  db.prepare(`UPDATE payments SET ${PAYMENT_FIELDS.map((k) => `${k} = ?`).join(', ')}, updated_at = ? WHERE id = ?`)
+    .run(...PAYMENT_FIELDS.map((k) => f[k]), t.ymdhms(new Date()), id);
+}
+
+function deletePayment(id) {
+  db.prepare('DELETE FROM payments WHERE id = ?').run(id);
+}
+
+function paymentLogRows(id, scheduledFor) {
+  return db.prepare(`SELECT * FROM send_log WHERE job_type = 'payment' AND job_id = ? AND scheduled_for = ?`)
+    .all(id, scheduledFor);
+}
+
+// ---------- WhatsApp contacts ----------
+
+function listContacts() {
+  return db.prepare('SELECT * FROM wa_contacts ORDER BY name COLLATE NOCASE').all();
+}
+
+function saveContacts(contacts) {
+  const now = t.ymdhms(new Date());
+  db.transaction(() => {
+    db.prepare('DELETE FROM wa_contacts').run();
+    const ins = db.prepare('INSERT OR IGNORE INTO wa_contacts (phone, name, last_synced_at) VALUES (?, ?, ?)');
+    for (const c of contacts) ins.run(c.phone, c.name, now);
+  })();
+}
+
 // ---------- Send log ----------
 
 // Returns true if the row was written (false if this group was already logged for this send).
@@ -227,6 +277,8 @@ module.exports = {
   listGroups, groupNames, saveGroups,
   getBirthday, listBirthdays, createBirthday, updateBirthday, deleteBirthday,
   setBirthdayContent, clearBirthdayContent, birthdayLogRows, nextOccurrence, hasContentFor,
+  listPayments, getPayment, createPayment, updatePayment, deletePayment, paymentLogRows,
+  listContacts, saveContacts,
   getMessage, listMessages, pendingMessages, createMessage, updateMessage, finishMessage, deleteMessage, messageLogRows,
   addLog, history, saveSettings,
 };

@@ -40,16 +40,16 @@
 <section class="card">
   <h2>Next sends</h2>
   <% if (!upcoming.length) { %>
-    <p class="muted">Nothing scheduled. <a href="/birthdays/new">Add a birthday</a> or <a href="/messages/new">schedule a message</a>.</p>
+    <p class="muted">Nothing scheduled. <a href="/birthdays/new">Add a birthday</a> or <a href="/messages/new">schedule a message</a> or <a href="/payments/new">add a payment reminder</a>.</p>
   <% } else { %>
     <table>
-      <thead><tr><th>When</th><th>What</th><th>Groups</th><th>Content</th></tr></thead>
+      <thead><tr><th>When</th><th>What</th><th>Sent to</th><th>Content</th></tr></thead>
       <tbody>
       <% upcoming.forEach((u) => { %>
         <tr>
           <td><%= t.prettyDateTime(u.when) %></td>
           <td><span class="muted"><%= u.kind %>:</span> <a href="<%= u.url %>"><%= u.label %></a></td>
-          <td><%= u.groups %></td>
+          <td><%= u.groups === 'person' ? 'person' : u.groups + ' group' + (u.groups === 1 ? '' : 's') %></td>
           <td><% if (u.hasContent) { %><span class="tag tag-ok">ready</span><% } else { %><a class="tag tag-warn" href="<%= u.url %>">needs content</a><% } %></td>
         </tr>
       <% }) %>

@@ -18,7 +18,9 @@ library's main branch but not yet released. You should see `[patch-wwebjs] appli
    Use **Send test to myself** to see how it looks. After the birthday is sent (or missed), the image and caption
    are deleted, so next year you add new ones.
 5. **One-off messages:** schedule a single message (image and/or caption) for any date and time.
-6. **History:** shows every send per group: sent, failed (with the reason) or missed.
+6. **Payments:** reminders for EMI, insurance and other dues, sent to one person's private WhatsApp chat.
+   See [Payment reminders](#payment-reminders) below.
+7. **History:** shows every send: sent, failed (with the reason) or missed.
 
 You also get WhatsApp messages on your own number:
 - the result after each send (for example "Rahul: sent to 4/5 groups", with the reason for any failure)
@@ -26,6 +28,23 @@ You also get WhatsApp messages on your own number:
 - a daily reminder (default 09:00) listing birthdays in the next 7 days that still need an image or caption
 
 These can be turned off, and the times changed, on the **Settings** page.
+
+### Payment reminders
+
+**Payments → + Add payment reminder**:
+
+- **Who:** pick a saved contact (load them once on **Groups & contacts**) or type the number. 10-digit numbers get +91.
+- **Repeats:** every month, every N months (3 = quarterly), or every year. The due day comes from the first due date;
+  if a month is shorter (the 31st in February), the last day of that month is used.
+- **When:** a reminder goes out **every day from N days before the due date up to the due date** (default 2 days
+  before, at 10:00). 0 means only on the due date.
+- **Ends:** optionally after a number of payments (e.g. 24 EMIs) or after a date. Leave empty to repeat forever.
+- **Message:** a template, e.g. `Hi {name}, your {title} of ₹{amount} is due {days_left} ({due_date}).`
+  `{days_left}` becomes "in 2 days", "tomorrow" or "today". The form shows a live preview.
+- **Test to me** sends the filled-in message to your own number, not to the person.
+
+You only get a WhatsApp alert for payment reminders when one **fails** (e.g. the number is not on WhatsApp)
+or is **missed**. Successful reminders show in History with 💳.
 
 ### Rules worth knowing
 

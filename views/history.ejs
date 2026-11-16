@@ -21,12 +21,12 @@
     <p class="muted">Nothing here yet.</p>
   <% } else { %>
     <table>
-      <thead><tr><th>Scheduled for</th><th>Message</th><th>Group</th><th>Result</th><th>Details</th></tr></thead>
+      <thead><tr><th>Scheduled for</th><th>Message</th><th>Sent to</th><th>Result</th><th>Details</th></tr></thead>
       <tbody>
       <% rows.forEach((r) => { %>
         <tr>
           <td><%= t.prettyDateTime(t.parse(r.scheduled_for)) %></td>
-          <td><%= r.job_type === 'birthday' ? '🎂' : '🗓️' %> <%= r.job_label %></td>
+          <td><%= r.job_type === 'birthday' ? '🎂' : r.job_type === 'payment' ? '💳' : '🗓️' %> <%= r.job_label %></td>
           <td><%= r.group_name || r.group_id || '-' %></td>
           <td><span class="tag tag-<%= r.status %>"><%= r.status %></span></td>
           <td class="muted"><%= r.status === 'sent' ? 'at ' + r.sent_at : (r.error || '') %></td>

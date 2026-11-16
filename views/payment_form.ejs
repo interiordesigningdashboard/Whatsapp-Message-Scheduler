@@ -1,0 +1,131 @@
+<%- include('partials/header', { title: payment ? 'Edit payment reminder' : 'Add payment reminder' }) %>
+
+<h1><%= payment ? 'Edit ' + payment.title : 'Add payment reminder' %></h1>
+
+<form method="post" action="<%= payment ? '/payments/' + payment.id : '/payments' %>" class="card form" id="pay-form">
+  <label>Title
+    <input type="text" name="title" value="<%= form.title %>" required maxlength="100" placeholder="Car EMI, LIC premium…" autofocus>
+  </label>
+
+  <h2>Who to remind</h2>
+  <% if (contacts.length) { %>
+    <label>Pick from your WhatsApp contacts (optional)
+      <input type="search" id="contact-pick" list="contact-list" placeholder="Start typing a name or number…" autocomplete="off">
+      <datalist id="contact-list">
+        <% contacts.forEach((c) => { %><option value="<%= c.name %> · +<%= c.phone %>"></option><% }) %>
+      </datalist>
+    </label>
+  <% } %>
+  <div class="row">
+    <label>Name
+      <input type="text" name="person_name" value="<%= form.person_name %>" required maxlength="100">
+    </label>
+    <label>WhatsApp number
+      <input type="tel" name="phone" value="<%= form.phoneInput %>" required placeholder="98765 43210">
+    </label>
+  </div>
+  <p class="muted">10-digit numbers get +91 automatically. For other countries start with + and the country code.
+    <% if (!contacts.length) { %>To pick from your contacts, load them on the <a href="/groups">Groups &amp; contacts</a> page.<% } %></p>
+
+  <h2>Payment</h2>
+  <div class="row">
+    <label>Amount in ₹ (optional)
+      <input type="text" name="amount" value="<%= form.amount %>" inputmode="decimal" placeholder="5000">
+    </label>
+    <label>First due date
+      <input type="date" name="first_due_date" value="<%= form.first_due_date %>" required>
+    </label>
+  </div>
+
+  <fieldset class="groups-picker">
+    <legend>Repeats</legend>
+    <label class="check"><input type="radio" name="repeat" value="monthly" <%= form.repeat === 'monthly' ? 'checked' : '' %>> Every month</label>
+    <label class="check"><input type="radio" name="repeat" value="every_n" <%= form.repeat === 'every_n' ? 'checked' : '' %>>
+      Every <input type="number" name="every_n" min="1" max="120" value="<%= form.every_n %>" class="tiny"> months (3 = quarterly, 6 = half-yearly)</label>
+    <label class="check"><input type="radio" name="repeat" value="yearly" <%= form.repeat === 'yearly' ? 'checked' : '' %>> Every year</label>
+    <p class="muted">The due day is taken from the first due date. If a month is shorter (e.g. the 31st in February), the last day of that month is used.</p>
+  </fieldset>
+
+  <div class="row">
+    <label>Start reminding this many days before
+      <input type="number" name="remind_days_before" min="0" max="30" value="<%= form.remind_days_before %>" required>
+    </label>
+    <label>Send time (India time)
+      <input type="time" name="send_time" value="<%= form.send_time %>" required>
+    </label>
+  </div>
+  <p class="muted">A reminder goes out every day from that many days before, up to and including the due date. 0 = only on the due date.</p>
+
+  <div class="row">
+    <label>Stop after this many payments (optional)
+      <input type="number" name="end_count" min="1" value="<%= form.end_count %>" placeholder="e.g. 24">
+    </label>
+    <label>…or stop after this date (optional)
+      <input type="date" name="end_date" value="<%= form.end_date %>">
+    </label>
+  </div>
+  <p class="muted">Leave both empty to repeat until you pause or delete it (e.g. insurance).</p>
+
+  <h2>Message</h2>
+  <label>Reminder text
+    <textarea name="message" rows="4" maxlength="2000" required><%= form.message %></textarea>
+  </label>
+  <p class="muted">Filled in automatically: <% placeholders.forEach((p) => { %><code>{<%= p %>}</code> <% }) %>
+    · <code>{days_left}</code> becomes "in 2 days", "tomorrow" or "today".</p>
+  <div class="preview-box">
+    <div class="muted">Preview, first reminder:</div>
+    <div id="preview-first" class="bubble"></div>
+    <div class="muted">Preview, on the due date:</div>
+    <div id="preview-last" class="bubble"></div>
+  </div>
+
+  <label class="check">
+    <input type="checkbox" name="active" value="1" <%= form.active ? 'checked' : '' %>>
+    Active (untick to pause without deleting)
+  </label>
+
+  <div class="buttons">
+    <button class="btn" type="submit">Save</button>
+    <a href="/payments" class="btn btn-secondary">Cancel</a>
+  </div>
+</form>
+
+<% if (payment) { %>
+<form method="post" action="/payments/<%= payment.id %>/delete" class="danger-zone"
+      onsubmit="return confirm('Delete this payment reminder? This cannot be undone.')">
+  <button class="btn btn-danger" type="submit">Delete this payment reminder</button>
+</form>
+<% } %>
+
+<script>
+  const form = document.getElementById('pay-form');
+  const pick = document.getElementById('contact-pick');
+  if (pick) {
+    pick.addEventListener('input', () => {
+      const m = /^(.*) · (\+\d+)$/.exec(pick.value);
+      if (!m) return;
+      form.person_name.value = m[1];
+      form.phone.value = m[2];
+      updatePreview();
+    });
+  }
+
+  let timer;
+  async function updatePreview() {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const body = {};
+      ['title', 'person_name', 'amount', 'message', 'first_due_date', 'remind_days_before'].forEach((k) => { body[k] = form[k].value; });
+      try {
+        const res = await fetch('/payments/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const j = await res.json();
+        document.getElementById('preview-first').textContent = j.text;
+        document.getElementById('preview-last').textContent = j.lastDay;
+      } catch (e) { /* ignore */ }
+    }, 250);
+  }
+  form.addEventListener('input', updatePreview);
+  updatePreview();
+</script>
+
+<%- include('partials/footer') %>

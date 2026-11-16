@@ -143,3 +143,20 @@ data/                 # app.db, uploads/, .wwebjs_auth/  (git-ignored)
 5. **One-off messages:** CRUD pages, scheduled through the same engine
 6. **Alerts and history:** self-summary messages, the daily "needs content" reminder, and the History page
 7. **Polish:** settings page, `start.bat` with Task Scheduler instructions, README with setup steps, backup of `data/`
+
+## 12. Payment reminders (added)
+
+| Topic | Decision |
+|---|---|
+| Recipient | One person's private chat (not groups). Picked from WhatsApp contacts or typed (+91 added for 10 digits). |
+| Repeats | Every month, every N months, or every year. Due day from the first due date; short months use their last day. |
+| Reminder days | Every day from N days before the due date through the due date (default N = 2), at a set time (default 10:00). |
+| End | Optional number of payments and/or end date; otherwise forever. |
+| Message | Template with `{name}` `{title}` `{amount}` `{due_date}` `{days_left}`. |
+| Paid tracking | None: every reminder in the window is sent. |
+| Missed | Same rule as birthdays: never sent late, marked missed. |
+| Alerts to me | Only when a reminder fails or is missed. |
+
+Data: `payments` table (title, person, phone, amount, every_months, first_due_date, remind_days_before, send_time,
+end_count, end_date, message, active) and `wa_contacts` (phone, name). `send_log.job_type` gains `payment`,
+with the person's number as the target and the reminder time as `scheduled_for`.
