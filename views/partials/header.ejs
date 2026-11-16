@@ -11,7 +11,7 @@
     <span class="brand">🎂 WhatsApp Scheduler</span>
     <nav>
       <% [['status', '/', 'Status'], ['birthdays', '/birthdays', 'Birthdays'], ['messages', '/messages', 'One-off messages'],
-          ['payments', '/payments', 'Payments'], ['groups', '/groups', 'Groups & contacts'], ['history', '/history', 'History'], ['settings', '/settings', 'Settings']]
+          ['payments', '/payments', 'Payments'], ['groups', '/groups', 'Groups & contacts'], ['history', '/history', 'History'], ['transfer', '/import-export', 'Import / export'], ['settings', '/settings', 'Settings']]
          .forEach(([key, href, label]) => { %>
         <a href="<%= href %>" class="<%= page === key ? 'active' : '' %>"><%= label %></a>
       <% }) %>

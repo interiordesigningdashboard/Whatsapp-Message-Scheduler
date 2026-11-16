@@ -242,20 +242,6 @@ function updatePayment(id, f) {
   })();
 }
 
-function getPaymentByImportKey(key) {
-  const p = db.prepare('SELECT * FROM payments WHERE import_key = ?').get(key);
-  if (p) p.recipients = paymentRecipients(p.id);
-  return p;
-}
-
-function setPaymentImportKey(id, key) {
-  db.prepare('UPDATE payments SET import_key = ? WHERE id = ?').run(key, id);
-}
-
-function importedPayments() {
-  return db.prepare('SELECT * FROM payments WHERE import_key IS NOT NULL').all();
-}
-
 function deletePayment(id) {
   db.prepare('DELETE FROM payments WHERE id = ?').run(id);
 }
@@ -317,7 +303,7 @@ module.exports = {
   listGroups, groupNames, saveGroups,
   getBirthday, listBirthdays, createBirthday, updateBirthday, deleteBirthday,
   setBirthdayContent, clearBirthdayContent, birthdayLogRows, nextOccurrence, hasContentFor,
-  listPayments, getPayment, paymentRecipients, createPayment, getPaymentByImportKey, setPaymentImportKey, importedPayments, updatePayment, deletePayment, paymentLogRows,
+  listPayments, getPayment, paymentRecipients, createPayment, updatePayment, deletePayment, paymentLogRows,
   listContacts, saveContacts,
   getMessage, listMessages, pendingMessages, createMessage, updateMessage, finishMessage, deleteMessage, messageLogRows,
   addLog, history, saveSettings,

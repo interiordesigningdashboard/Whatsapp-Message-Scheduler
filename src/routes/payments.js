@@ -43,34 +43,11 @@ function readForm(body) {
 
 function validate(f) {
   const errors = [];
-  if (!f.title) errors.push('Enter a title, e.g. Car EMI.');
-  if (!f.people.length) errors.push('Add at least one person to remind.');
-  f.recipients = [];
-  const seen = new Set();
-  f.people.forEach((r, i) => {
-    const who = r.name || `Person ${i + 1}`;
-    const phone = pay.normalizePhone(r.phoneInput);
-    if (!r.name) errors.push(`Person ${i + 1}: enter a name.`);
-    if (!phone) errors.push(`${who}: enter a valid WhatsApp number, e.g. 98765 43210 or +91 98765 43210.`);
-    else if (seen.has(phone)) errors.push(`${who}: the number +${phone} is already in the list.`);
-    if (phone) seen.add(phone);
-    if (r.name && phone) f.recipients.push({ name: r.name, phone });
-  });
-  if (f.people.length > 50) errors.push('At most 50 people per payment reminder.');
-  if (f.amount && !/^\d+(\.\d{1,2})?$/.test(f.amount)) errors.push('Amount: numbers only, e.g. 5000 or 5000.50.');
-  if (!['monthly', 'every_n', 'yearly'].includes(f.repeat)) errors.push('Choose how often it repeats.');
-  else if (!Number.isInteger(f.every_months) || f.every_months < 1 || f.every_months > 120) errors.push('Every N months: a whole number from 1 to 120.');
-  if (!t.parse(f.first_due_date)) errors.push('Choose the first due date.');
-  if (!Number.isInteger(f.remind_days_before) || f.remind_days_before < 0 || f.remind_days_before > 30) errors.push('Remind from: 0 to 30 days before.');
-  if (!t.isValidTime(f.send_time)) errors.push('Enter a send time like 10:00.');
-  if (f.end_count !== null && (!Number.isInteger(f.end_count) || f.end_count < 1)) errors.push('Number of payments: a whole number, 1 or more.');
-  if (f.end_date && !t.parse(f.end_date)) errors.push('End date is not valid.');
-  if (f.end_date && t.parse(f.first_due_date) && f.end_date < f.first_due_date) errors.push('End date is before the first due date.');
-  if (!f.message) errors.push('Write the reminder message.');
-  const unknown = pay.unknownPlaceholders(f.message);
-  if (unknown.length) errors.push(`Unknown placeholder${unknown.length > 1 ? 's' : ''}: ${unknown.map((u) => `{${u}}`).join(', ')}. Use ${pay.PLACEHOLDERS.map((p) => `{${p}}`).join(' ')}.`);
-  if (/\{amount\}/.test(f.message) && !f.amount) errors.push('The message uses {amount}, so enter an amount (or remove {amount}).');
-  return errors;
+  const repeatOk = ['monthly', 'every_n', 'yearly'].includes(f.repeat);
+  if (!repeatOk) errors.push('Choose how often it repeats.');
+  f.recipients = pay.checkPeople(f.people, errors);
+  // Without a repeat choice there is no "every N months" to check.
+  return [...pay.checkFields(f).filter((e) => repeatOk || !e.startsWith('Every N months')), ...errors];
 }
 
 function renderForm(res, { payment, form, errors }) {

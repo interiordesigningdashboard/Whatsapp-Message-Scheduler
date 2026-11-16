@@ -1,0 +1,55 @@
+<%- include('partials/header', { title: 'Import preview' }) %>
+
+<h1>Import preview</h1>
+<p class="muted">File: <strong><%= fileName %></strong>. Nothing has been saved yet.</p>
+
+<% plan.problems.forEach((p) => { %><div class="flash flash-err"><%= p %></div><% }) %>
+
+<section class="card">
+  <ul class="plain">
+    <% summary.forEach((s) => { %><li><%= s %></li><% }) %>
+  </ul>
+  <% const changes = ['payments', 'birthdays'].reduce((n, k) => n + plan[k].add.length + plan[k].update.length + plan[k].remove.length, 0); %>
+  <% if (changes) { %>
+    <form method="post" action="/import/apply" class="buttons">
+      <input type="hidden" name="token" value="<%= token %>">
+      <input type="hidden" name="prune" value="<%= prune ? '1' : '' %>">
+      <button class="btn" type="submit">Import these changes</button>
+      <a class="btn btn-secondary" href="/import-export">Cancel</a>
+    </form>
+  <% } else { %>
+    <p>Nothing to change.</p>
+    <a class="btn btn-secondary" href="/import-export">Back</a>
+  <% } %>
+</section>
+
+<% [['payments', 'Payment reminders', (r) => r.fields.title], ['birthdays', 'Birthdays', (r) => r.fields.name]].forEach(([k, label, nameOf]) => { const s = plan[k]; %>
+  <% if (s.errors.length) { %>
+  <section class="card card-warn">
+    <h2><%= label %>: rows with problems (will be skipped)</h2>
+    <table>
+      <thead><tr><th>Row</th><th>Item</th><th>Problem</th></tr></thead>
+      <tbody>
+      <% s.errors.forEach((e) => { %>
+        <tr><td><%= e.row %></td><td><%= e.label %></td><td><%= e.errors.join(' · ') %></td></tr>
+      <% }) %>
+      </tbody>
+    </table>
+  </section>
+  <% } %>
+  <% if (s.add.length || s.update.length || s.remove.length) { %>
+  <section class="card">
+    <h2><%= label %></h2>
+    <table>
+      <thead><tr><th>Row</th><th>What happens</th><th>Item</th></tr></thead>
+      <tbody>
+      <% s.add.forEach((r) => { %><tr><td><%= r.row %></td><td><span class="tag tag-ok">add</span></td><td><%= nameOf(r) %></td></tr><% }) %>
+      <% s.update.forEach((r) => { %><tr><td><%= r.row %></td><td><span class="tag tag-warn">update</span></td><td><%= nameOf(r) %> <span class="muted">(ID <%= r.id %>)</span></td></tr><% }) %>
+      <% s.remove.forEach((i) => { %><tr><td>-</td><td><span class="tag tag-failed">delete</span></td><td><%= i.title || i.name %> <span class="muted">(ID <%= i.id %>)</span></td></tr><% }) %>
+      </tbody>
+    </table>
+  </section>
+  <% } %>
+<% }) %>
+
+<%- include('partials/footer') %>

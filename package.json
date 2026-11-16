@@ -7,7 +7,9 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "postinstall": "node scripts/patch-wwebjs.js"
+    "postinstall": "node scripts/patch-wwebjs.js",
+    "export": "node scripts/export.js",
+    "import": "node scripts/import.js"
   },
   "engines": {
     "node": ">=22.13"

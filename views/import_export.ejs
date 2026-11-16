@@ -1,0 +1,37 @@
+<%- include('partials/header', { title: 'Import / export' }) %>
+
+<h1>Import / export</h1>
+
+<section class="card">
+  <h2>Export</h2>
+  <p>Download all payment reminders and birthdays as one Excel file (sheets <strong>Payments</strong> and <strong>Birthdays</strong>).
+    Edit it in Excel and import it back, or keep it as a backup.</p>
+  <div class="buttons">
+    <a class="btn" href="/export.xlsx">Export to Excel</a>
+    <a class="btn btn-secondary" href="/export.xlsx?ids=0" title="For setting up another PC: every row is added as new there">Export without IDs</a>
+    <a class="btn btn-secondary" href="/export/template.xlsx">Download empty template</a>
+  </div>
+  <p class="muted">The file has a "How to use" sheet explaining every column.</p>
+</section>
+
+<section class="card">
+  <h2>Import</h2>
+  <form method="post" action="/import/preview" enctype="multipart/form-data" class="form">
+    <label>Excel file (.xlsx)
+      <input type="file" name="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+    </label>
+    <label class="check">
+      <input type="checkbox" name="prune" value="1">
+      Delete payment reminders and birthdays that are not in the file
+    </label>
+    <div class="buttons"><button class="btn" type="submit">Preview import</button></div>
+  </form>
+  <ul class="muted">
+    <li>You see exactly what will change before anything is saved.</li>
+    <li>Rows with an ID update that item. Rows without an ID are added as new.</li>
+    <li>Rows with a problem are listed and skipped; the other rows can still be imported.</li>
+    <li>Birthday groups are matched by name, so load your groups on <a href="/groups">Groups &amp; contacts</a> first.</li>
+  </ul>
+</section>
+
+<%- include('partials/footer') %>

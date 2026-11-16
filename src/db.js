@@ -142,7 +142,7 @@ const MIGRATIONS = [
   );
   INSERT INTO payment_recipients (payment_id, name, phone, position) SELECT id, person_name, phone, 0 FROM payments;
   `,
-  // 5: payments created by scripts/import-excel.js carry a key, so re-running the import updates them.
+  // 5: import_key (no longer used; kept because migrations are never edited).
   `
   ALTER TABLE payments ADD COLUMN import_key TEXT;
   CREATE UNIQUE INDEX payments_import_key ON payments(import_key) WHERE import_key IS NOT NULL;
@@ -159,6 +159,7 @@ function open() {
   raw.exec('PRAGMA busy_timeout = 5000');
 
   // node:sqlite rejects undefined; store it as NULL like an empty value.
+  let depth = 0;
   const clean = (args) => args.map((a) => (a === undefined ? null : a));
   const db = {
     prepare: (sql) => {
@@ -171,14 +172,19 @@ function open() {
     },
     exec: (sql) => raw.exec(sql),
     // Wraps fn so that everything inside it is saved together, or not at all.
+    // Calls can be nested: the outermost uses BEGIN/COMMIT, inner ones use savepoints.
     transaction: (fn) => (...args) => {
-      raw.exec('BEGIN');
+      const sp = depth > 0 ? `sp${depth}` : null;
+      raw.exec(sp ? `SAVEPOINT ${sp}` : 'BEGIN');
+      depth += 1;
       try {
         const result = fn(...args);
-        raw.exec('COMMIT');
+        depth -= 1;
+        raw.exec(sp ? `RELEASE ${sp}` : 'COMMIT');
         return result;
       } catch (err) {
-        raw.exec('ROLLBACK');
+        depth -= 1;
+        raw.exec(sp ? `ROLLBACK TO ${sp}; RELEASE ${sp}` : 'ROLLBACK');
         throw err;
       }
     },

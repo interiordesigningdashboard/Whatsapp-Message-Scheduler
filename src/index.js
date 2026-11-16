@@ -39,6 +39,7 @@ app.use(require('./routes/groups'));
 app.use(require('./routes/birthdays'));
 app.use(require('./routes/messages'));
 app.use(require('./routes/payments'));
+app.use(require('./routes/transfer'));
 app.use(require('./routes/history'));
 app.use(require('./routes/settings'));
 

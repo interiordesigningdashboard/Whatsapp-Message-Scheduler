@@ -135,10 +135,47 @@ function describeEnd(p) {
   return parts.length ? parts.join(', ') : 'No end';
 }
 
+// Turns a list of { name, phoneInput } into recipients [{ name, phone }]; adds problems to `errors`.
+function checkPeople(people, errors) {
+  const recipients = [];
+  if (!people.length) errors.push('Add at least one person to remind.');
+  if (people.length > 50) errors.push('At most 50 people per payment reminder.');
+  const seen = new Set();
+  people.forEach((r, i) => {
+    const who = r.name || `Person ${i + 1}`;
+    const phone = normalizePhone(r.phoneInput);
+    if (!r.name) errors.push(`Person ${i + 1}: enter a name.`);
+    if (!phone) errors.push(`${who}: enter a valid WhatsApp number, e.g. 98765 43210 or +91 98765 43210.`);
+    else if (seen.has(phone)) errors.push(`${who}: the number +${phone} is already in the list.`);
+    if (phone) seen.add(phone);
+    if (r.name && phone) recipients.push({ name: r.name, phone });
+  });
+  return recipients;
+}
+
+// Checks the payment fields (everything except the people). Used by the form and by Excel import.
+function checkFields(f) {
+  const errors = [];
+  if (!f.title) errors.push('Enter a title, e.g. Car EMI.');
+  if (f.amount && !/^\d+(\.\d{1,2})?$/.test(f.amount)) errors.push('Amount: numbers only, e.g. 5000 or 5000.50.');
+  if (!Number.isInteger(f.every_months) || f.every_months < 1 || f.every_months > 120) errors.push('Every N months: a whole number from 1 to 120.');
+  if (!t.parse(f.first_due_date)) errors.push('Choose the first due date.');
+  if (!Number.isInteger(f.remind_days_before) || f.remind_days_before < 0 || f.remind_days_before > 30) errors.push('Remind from: 0 to 30 days before.');
+  if (!t.isValidTime(f.send_time)) errors.push('Enter a send time like 10:00.');
+  if (f.end_count !== null && (!Number.isInteger(f.end_count) || f.end_count < 1)) errors.push('Number of payments: a whole number, 1 or more.');
+  if (f.end_date && !t.parse(f.end_date)) errors.push('End date is not valid.');
+  if (f.end_date && t.parse(f.first_due_date) && f.end_date < f.first_due_date) errors.push('End date is before the first due date.');
+  if (!f.message) errors.push('Write the reminder message.');
+  const unknown = unknownPlaceholders(f.message || '');
+  if (unknown.length) errors.push(`Unknown placeholder${unknown.length > 1 ? 's' : ''}: ${unknown.map((u) => `{${u}}`).join(', ')}. Use ${PLACEHOLDERS.map((p) => `{${p}}`).join(' ')}.`);
+  if (/\{amount\}/.test(f.message || '') && !f.amount) errors.push('The message uses {amount}, so enter an amount (or remove {amount}).');
+  return errors;
+}
+
 const DEFAULT_MESSAGE = 'Hi {name}, this is a reminder that your {title} of ₹{amount} is due {days_left} ({due_date}). Please pay on time 🙏';
 
 module.exports = {
   normalizePhone, prettyPhone, dueDate, dueOnOrAfter, reminderOn, nextReminder,
   renderMessage, unknownPlaceholders, formatAmount, daysLeftText, shortDate,
-  describeRepeat, describeEnd, PLACEHOLDERS, DEFAULT_MESSAGE,
+  describeRepeat, describeEnd, PLACEHOLDERS, DEFAULT_MESSAGE, checkPeople, checkFields,
 };

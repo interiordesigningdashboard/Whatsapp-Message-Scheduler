@@ -48,21 +48,30 @@ These can be turned off, and the times changed, on the **Settings** page.
 You only get a WhatsApp alert for payment reminders when one **fails** (e.g. the number is not on WhatsApp)
 or is **missed**. Successful reminders show in History with 💳.
 
-### Importing reminders from Excel
+### Import / export (Excel)
 
-`scripts/import-excel.js` turns the "VEHICLE INSURANCE DETAILS" workbook into payment reminders
-(vehicle insurance, LIC and other premiums, monthly dues and SIPs, loan EMIs). Messages are bullet points
-with no greeting and no recipient name. Account numbers and password columns are never read.
+Payment reminders and birthdays can be exported to one Excel file, edited in Excel, and imported back.
+The file has a **Payments** sheet, a **Birthdays** sheet and a **How to use** sheet that explains every column.
 
-First run it without `--apply` to see what it would create (nothing is saved):
+**In the dashboard:** open **Import / export** (also linked from the Payments and Birthdays pages):
+
+- **Export to Excel:** everything, with IDs.
+- **Export without IDs:** to set up another PC; every row is added as new there.
+- **Download empty template.**
+- **Import:** choose the file and click **Preview import**. You see what will be added, updated or deleted, and
+  any rows with problems (with the row number), before anything is saved. Then click **Import these changes**.
+
+**On the command line** (e.g. on the production PC, or for backups):
 
 ```
-node scripts/import-excel.js "C:\path\to\VEHICLE_INSURANCE_DETAILS.xlsx" --to "Vivek=+91 99625 00387" --to "Deepa akka=+91 99625 00404" --time 10:00 --days 2
+npm run export -- backup.xlsx
+npm run import -- backup.xlsx            (preview only)
+npm run import -- backup.xlsx --apply    (save)
 ```
 
-Then the same command with `--apply` to save. After editing the Excel, run it again with `--apply`:
-reminders it made before are updated (no duplicates) and paused ones stay paused. Add `--prune` to also
-delete reminders whose row was removed from the Excel. The app can keep running while you import.
+Rules: rows with an ID update that item; rows without an ID are added. Nothing is deleted unless you tick
+"Delete … not in the file" (or add `--prune`). Rows with problems are skipped and listed; the rest still import.
+Birthday groups are matched by name, so load groups first. The app can keep running during an import.
 
 ### Rules worth knowing
 
