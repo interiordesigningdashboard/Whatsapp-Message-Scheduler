@@ -49,12 +49,25 @@ app.use((err, req, res, next) => {
   res.status(500).send(`Something went wrong: ${err.message}`);
 });
 
-const server = app.listen(config.port, config.host, () => {
+// Start WhatsApp and the scheduler only once the dashboard port is ours. If another copy of the app is
+// already running, stop here: two copies would fight over the same WhatsApp login and send everything twice.
+// (Not app.listen: in Express 5 its callback also runs when the port is taken.)
+const server = require('http').createServer(app);
+server.once('listening', () => {
   console.log(`Dashboard: http://localhost:${config.port}`);
+  wa.start();
+  scheduler.start();
 });
-
-wa.start();
-scheduler.start();
+server.listen(config.port, config.host);
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`The app is already running (port ${config.port} is in use). Open http://localhost:${config.port}`
+      + ' or stop the other copy first (also check Task Scheduler). This copy will now exit.');
+  } else {
+    console.error(`Could not start the dashboard: ${err.message}`);
+  }
+  process.exit(1);
+});
 
 let shuttingDown = false;
 async function shutdown() {

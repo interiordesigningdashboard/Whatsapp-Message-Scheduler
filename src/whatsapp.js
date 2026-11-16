@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
 const QRCode = require('qrcode');
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const config = require('./config');
@@ -29,6 +30,49 @@ function setStatus(status, extra = {}) {
   console.log(`[whatsapp] ${status}${extra.lastError ? `: ${extra.lastError}` : ''}`);
 }
 
+// The Chrome profile folder LocalAuth uses for the saved WhatsApp login.
+const profileDir = path.join(config.waAuthDir, 'session');
+
+// A Chrome left over from an earlier run (app closed without stopping Chrome, or a second copy of the app)
+// keeps the profile locked, and the new Chrome exits at once: "Target closed" / "browser is already running".
+// Close such Chromes (only ones using OUR profile folder) and remove stale lock files before starting.
+function closeLeftoverChrome() {
+  let killed = 0;
+  try {
+    if (process.platform === 'win32') {
+      const dir = profileDir.toLowerCase().replace(/'/g, "''");
+      const ps = `$d='${dir}'; Get-CimInstance Win32_Process -Filter "Name='chrome.exe' OR Name='chrome-headless-shell.exe'" | `
+        + "Where-Object { $_.CommandLine -and $_.CommandLine.ToLower().Contains($d) } | "
+        + 'ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue; $_.ProcessId }';
+      const out = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { encoding: 'utf8', timeout: 30000, windowsHide: true });
+      killed = out.split(/\s+/).filter(Boolean).length;
+    } else {
+      const out = execFileSync('ps', ['-eo', 'pid=,args='], { encoding: 'utf8' });
+      for (const line of out.split('\n')) {
+        const m = /^\s*(\d+)\s+(.*)$/.exec(line);
+        if (!m || Number(m[1]) === process.pid || !m[2].includes(`--user-data-dir=${profileDir}`)) continue;
+        try { process.kill(Number(m[1]), 'SIGKILL'); killed += 1; } catch { /* already gone */ }
+      }
+    }
+  } catch (err) {
+    console.warn(`[whatsapp] could not check for leftover Chrome: ${err.message}`);
+  }
+  if (killed) console.log(`[whatsapp] closed ${killed} leftover Chrome process(es) that were holding the WhatsApp login`);
+  for (const f of ['SingletonLock', 'SingletonSocket', 'SingletonCookie', 'lockfile']) {
+    try { fs.rmSync(path.join(profileDir, f), { force: true }); } catch { /* still in use or not there */ }
+  }
+  return killed;
+}
+
+// Puppeteer's messages when Chrome dies on start are cryptic; say what to do.
+function startHint(message) {
+  if (/Target closed|already running|Failed to launch|Browser closed|Navigating frame was detached|Session closed/i.test(message)) {
+    return `${message}. Chrome closed while starting. Make sure only one copy of the app is running `
+      + '(also check Task Scheduler). If it keeps happening, stop the app, rename the folder data\\.wwebjs_auth and start again to scan a new QR code.';
+  }
+  return message;
+}
+
 function createClient() {
   const c = new Client({
     authStrategy: new LocalAuth({ dataPath: config.waAuthDir }),
@@ -44,6 +88,7 @@ function createClient() {
       handleSIGINT: false,
       handleSIGTERM: false,
       handleSIGHUP: false,
+      dumpio: process.env.WA_DEBUG === '1', // WA_DEBUG=1 shows Chrome's own messages in the log
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     },
   });
@@ -91,11 +136,12 @@ async function start() {
   if (config.waDisabled) return;
   clearTimeout(restartTimer);
   setStatus('starting', { qrDataUrl: null, loading: null });
+  closeLeftoverChrome();
   client = createClient();
   try {
     await client.initialize();
   } catch (err) {
-    setStatus('error', { lastError: `Could not start WhatsApp: ${err.message}` });
+    setStatus('error', { lastError: `Could not start WhatsApp: ${startHint(err.message)}` });
     scheduleRestart();
   }
 }
