@@ -159,3 +159,8 @@ code { background: #eef2f0; padding: 1px 5px; border-radius: 4px; font-size: 13p
 .bubble { background: #dcf8c6; border-radius: 8px; padding: 8px 12px; margin: 4px 0 10px; white-space: pre-wrap; max-width: 520px; min-height: 1.5em; }
 details summary { cursor: pointer; color: var(--accent); margin-bottom: 8px; }
 .form h2 { margin-top: 18px; }
+
+.person-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.person-row input { flex: 1 1 0; margin-top: 0 !important; }
+.person-row .remove-person { flex: 0 0 auto; padding: 6px 12px; }
+#add-person { margin-bottom: 6px; }

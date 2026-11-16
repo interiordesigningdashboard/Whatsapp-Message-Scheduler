@@ -4,7 +4,7 @@ const wa = require('../whatsapp');
 const t = require('../time');
 const pay = require('../payments');
 const { getSettings } = require('../db');
-const { redirectWith, flash, idParam } = require('./helpers');
+const { toArray, redirectWith, flash, idParam } = require('./helpers');
 
 const router = express.Router();
 
@@ -15,8 +15,18 @@ function readForm(body) {
   const everyN = Number(body.every_n);
   return {
     title: (body.title || '').trim(),
-    person_name: (body.person_name || '').trim(),
-    phoneInput: (body.phone || '').trim(),
+    // Several people: parallel lists of names and numbers; fully empty rows are ignored.
+    people: (() => {
+      const names = toArray(body.recipient_name);
+      const phones = toArray(body.recipient_phone);
+      const rows = [];
+      for (let i = 0; i < Math.max(names.length, phones.length); i++) {
+        const name = String(names[i] || '').trim();
+        const phoneInput = String(phones[i] || '').trim();
+        if (name || phoneInput) rows.push({ name, phoneInput });
+      }
+      return rows;
+    })(),
     amount: (body.amount || '').trim().replace(/,/g, ''),
     repeat,
     every_n: body.every_n || '',
@@ -34,9 +44,19 @@ function readForm(body) {
 function validate(f) {
   const errors = [];
   if (!f.title) errors.push('Enter a title, e.g. Car EMI.');
-  if (!f.person_name) errors.push("Enter the person's name.");
-  f.phone = pay.normalizePhone(f.phoneInput);
-  if (!f.phone) errors.push('Enter a valid WhatsApp number, e.g. 98765 43210 or +91 98765 43210.');
+  if (!f.people.length) errors.push('Add at least one person to remind.');
+  f.recipients = [];
+  const seen = new Set();
+  f.people.forEach((r, i) => {
+    const who = r.name || `Person ${i + 1}`;
+    const phone = pay.normalizePhone(r.phoneInput);
+    if (!r.name) errors.push(`Person ${i + 1}: enter a name.`);
+    if (!phone) errors.push(`${who}: enter a valid WhatsApp number, e.g. 98765 43210 or +91 98765 43210.`);
+    else if (seen.has(phone)) errors.push(`${who}: the number +${phone} is already in the list.`);
+    if (phone) seen.add(phone);
+    if (r.name && phone) f.recipients.push({ name: r.name, phone });
+  });
+  if (f.people.length > 50) errors.push('At most 50 people per payment reminder.');
   if (f.amount && !/^\d+(\.\d{1,2})?$/.test(f.amount)) errors.push('Amount: numbers only, e.g. 5000 or 5000.50.');
   if (!['monthly', 'every_n', 'yearly'].includes(f.repeat)) errors.push('Choose how often it repeats.');
   else if (!Number.isInteger(f.every_months) || f.every_months < 1 || f.every_months > 120) errors.push('Every N months: a whole number from 1 to 120.');
@@ -63,7 +83,7 @@ function renderForm(res, { payment, form, errors }) {
 function formFromPayment(p) {
   const repeat = p.every_months === 1 ? 'monthly' : p.every_months === 12 ? 'yearly' : 'every_n';
   return {
-    title: p.title, person_name: p.person_name, phoneInput: `+${p.phone}`, amount: p.amount || '',
+    title: p.title, people: p.recipients.map((r) => ({ name: r.name, phoneInput: `+${r.phone}` })), amount: p.amount || '',
     repeat, every_n: repeat === 'every_n' ? String(p.every_months) : '', first_due_date: p.first_due_date,
     remind_days_before: p.remind_days_before, send_time: p.send_time, end_count: p.end_count || '',
     end_date: p.end_date || '', message: p.message, active: p.active,
@@ -85,7 +105,7 @@ router.get('/payments/new', (req, res) => {
   renderForm(res, {
     payment: null,
     form: {
-      title: '', person_name: '', phoneInput: '', amount: '', repeat: 'monthly', every_n: '3',
+      title: '', people: [], amount: '', repeat: 'monthly', every_n: '3',
       first_due_date: '', remind_days_before: 2, send_time: '10:00', end_count: '', end_date: '',
       message: pay.DEFAULT_MESSAGE, active: 1,
     },
@@ -109,7 +129,7 @@ router.post('/payments', (req, res) => {
   const errors = validate(form);
   if (errors.length) return renderForm(res, { payment: null, form, errors });
   models.createPayment(form);
-  redirectWith(res, '/payments', { msg: `Saved "${form.title}" for ${form.person_name}.` });
+  redirectWith(res, '/payments', { msg: `Saved "${form.title}" for ${form.recipients.map((r) => r.name).join(', ')}.` });
 });
 
 router.get('/payments/:id/edit', (req, res) => {
@@ -142,9 +162,11 @@ router.post('/payments/:id/test', async (req, res) => {
   const next = pay.nextReminder(p, now, 0, () => false);
   const due = next ? next.due : (pay.dueOnOrAfter(p, now) || { date: pay.dueDate(p, 0) }).date;
   const daysLeft = next ? next.daysLeft : Math.max(0, t.daysBetween(now, due));
-  const text = pay.renderMessage(p, due, daysLeft);
+  const first = p.recipients[0];
+  const text = pay.renderMessage({ ...p, person_name: first.name }, due, daysLeft);
+  const to = p.recipients.map((r) => `${r.name} (${pay.prettyPhone(r.phone)})`).join(', ');
   try {
-    await wa.sendToSelf(null, `🧪 Test (would go to ${p.person_name}, ${pay.prettyPhone(p.phone)}):\n\n${text}`);
+    await wa.sendToSelf(null, `🧪 Test. Would go to ${to}, each with their own name. For ${first.name}:\n\n${text}`);
     redirectWith(res, '/payments', { msg: 'Test sent to your own WhatsApp number.' });
   } catch (err) {
     redirectWith(res, '/payments', { err: `Test failed: ${err.message}` });

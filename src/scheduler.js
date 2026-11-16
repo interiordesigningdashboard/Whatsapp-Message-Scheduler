@@ -84,27 +84,30 @@ function messageJob(m) {
 
 // Display name of a target: the group name, or the person for payment reminders.
 function nameOf(job, g, names) {
-  return job.targetName || names.get(g);
+  return (job.targetNames && job.targetNames[g]) || names.get(g);
 }
 
 function paymentJob(p, at, due, daysLeft) {
   const scheduledFor = t.ymdhm(at);
-  const caption = pay.renderMessage(p, due, daysLeft);
+  const people = new Map(p.recipients.map((r) => [r.phone, r]));
+  const textFor = (phone) => pay.renderMessage({ ...p, person_name: people.get(phone).name }, due, daysLeft);
   return {
     key: `payment:${p.id}:${scheduledFor}`,
     type: 'payment',
     id: p.id,
-    label: `${p.title} (${p.person_name})`,
+    label: `${p.title} (${p.recipients.map((r) => r.name).join(', ')})`,
     title: `💳 ${p.title}`,
-    targetName: `${p.person_name} (${pay.prettyPhone(p.phone)})`,
+    // one target per person: their number
+    targetNames: Object.fromEntries(p.recipients.map((r) => [r.phone, `${r.name} (${pay.prettyPhone(r.phone)})`])),
     scheduledAt: at,
     scheduledFor,
-    groupIds: [p.phone], // one target: the person's number
+    groupIds: p.recipients.map((r) => r.phone),
     imageFile: null,
-    caption,
+    caption: null,
     hasContent: true,
     quietOnSuccess: true,
-    deliver: () => wa.sendToNumber(p.phone, null, caption),
+    // each person gets the message with their own {name}
+    deliver: (phone) => wa.sendToNumber(phone, null, textFor(phone)),
     logRows: () => models.paymentLogRows(p.id, scheduledFor),
     finish: () => {},
   };
@@ -180,8 +183,8 @@ async function sendJob(job) {
   let text;
   if (job.type === 'payment') {
     text = failed.length
-      ? `⚠️ ${job.title}: reminder to ${job.targetName} FAILED: ${failed[0].error}`
-      : `${job.title}: reminder sent to ${job.targetName}.`;
+      ? `⚠️ ${job.title}: reminder sent to ${ok}/${results.length}. FAILED:\n${failed.map((f) => `• ${job.targetNames[f.g]}: ${f.error}`).join('\n')}`
+      : `${job.title}: reminder sent to ${results.map((r) => job.targetNames[r.g]).join(', ')}.`;
   } else {
     text = `${job.title}: sent to ${ok}/${results.length} group${results.length === 1 ? '' : 's'}.`;
     if (failed.length) {
@@ -370,8 +373,8 @@ function upcoming(now, limit) {
     const next = pay.nextReminder(p, now, graceMinutes, (sf) => models.paymentLogRows(p.id, sf).length > 0);
     if (!next) continue;
     items.push({
-      when: next.at, label: `${p.title} → ${p.person_name} (due ${pay.shortDate(next.due)})`, kind: 'Payment',
-      url: `/payments/${p.id}/edit`, hasContent: true, groups: 'person',
+      when: next.at, label: `${p.title} → ${p.recipients.map((r) => r.name).join(', ')} (due ${pay.shortDate(next.due)})`,
+      kind: 'Payment', url: `/payments/${p.id}/edit`, hasContent: true, people: p.recipients.length,
     });
   }
   return items.sort((a, b) => a.when - b.when).slice(0, limit);

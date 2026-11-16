@@ -8,24 +8,37 @@
   </label>
 
   <h2>Who to remind</h2>
+  <p class="muted">Each person gets their own private message, with <code>{name}</code> replaced by their name.</p>
   <% if (contacts.length) { %>
-    <label>Pick from your WhatsApp contacts (optional)
-      <input type="search" id="contact-pick" list="contact-list" placeholder="Start typing a name or number…" autocomplete="off">
+    <label>Add from your WhatsApp contacts
+      <input type="search" id="contact-pick" list="contact-list" placeholder="Start typing a name or number, then pick…" autocomplete="off">
       <datalist id="contact-list">
         <% contacts.forEach((c) => { %><option value="<%= c.name %> · +<%= c.phone %>"></option><% }) %>
       </datalist>
     </label>
   <% } %>
-  <div class="row">
-    <label>Name
-      <input type="text" name="person_name" value="<%= form.person_name %>" required maxlength="100">
-    </label>
-    <label>WhatsApp number
-      <input type="tel" name="phone" value="<%= form.phoneInput %>" required placeholder="98765 43210">
-    </label>
+
+  <div id="people">
+    <% const rows = form.people.length ? form.people : [{ name: '', phoneInput: '' }]; %>
+    <% rows.forEach((r) => { %>
+      <div class="person-row">
+        <input type="text" name="recipient_name" value="<%= r.name %>" placeholder="Name" maxlength="100" aria-label="Name">
+        <input type="tel" name="recipient_phone" value="<%= r.phoneInput %>" placeholder="98765 43210" aria-label="WhatsApp number">
+        <button type="button" class="btn btn-secondary remove-person" title="Remove this person">✕</button>
+      </div>
+    <% }) %>
   </div>
+  <button type="button" class="btn btn-secondary" id="add-person">+ Add person</button>
   <p class="muted">10-digit numbers get +91 automatically. For other countries start with + and the country code.
     <% if (!contacts.length) { %>To pick from your contacts, load them on the <a href="/groups">Groups &amp; contacts</a> page.<% } %></p>
+
+  <template id="person-template">
+    <div class="person-row">
+      <input type="text" name="recipient_name" placeholder="Name" maxlength="100" aria-label="Name">
+      <input type="tel" name="recipient_phone" placeholder="98765 43210" aria-label="WhatsApp number">
+      <button type="button" class="btn btn-secondary remove-person" title="Remove this person">✕</button>
+    </div>
+  </template>
 
   <h2>Payment</h2>
   <div class="row">
@@ -73,7 +86,7 @@
   <p class="muted">Filled in automatically: <% placeholders.forEach((p) => { %><code>{<%= p %>}</code> <% }) %>
     · <code>{days_left}</code> becomes "in 2 days", "tomorrow" or "today".</p>
   <div class="preview-box">
-    <div class="muted">Preview, first reminder:</div>
+    <div class="muted">Preview for the first person, first reminder:</div>
     <div id="preview-first" class="bubble"></div>
     <div class="muted">Preview, on the due date:</div>
     <div id="preview-last" class="bubble"></div>
@@ -99,14 +112,40 @@
 
 <script>
   const form = document.getElementById('pay-form');
+  const people = document.getElementById('people');
+
+  function addPerson(name, phone) {
+    // Reuse an empty row if there is one, otherwise add a new row.
+    let row = [...people.querySelectorAll('.person-row')].find((r) =>
+      !r.querySelector('[name=recipient_name]').value && !r.querySelector('[name=recipient_phone]').value);
+    if (!row) {
+      row = document.getElementById('person-template').content.firstElementChild.cloneNode(true);
+      people.appendChild(row);
+    }
+    row.querySelector('[name=recipient_name]').value = name || '';
+    row.querySelector('[name=recipient_phone]').value = phone || '';
+    if (!name) row.querySelector('[name=recipient_name]').focus();
+    updatePreview();
+  }
+
+  document.getElementById('add-person').addEventListener('click', () => addPerson('', ''));
+  people.addEventListener('click', (e) => {
+    if (!e.target.classList.contains('remove-person')) return;
+    const rows = people.querySelectorAll('.person-row');
+    if (rows.length > 1) e.target.closest('.person-row').remove();
+    else rows[0].querySelectorAll('input').forEach((i) => { i.value = ''; });
+    updatePreview();
+  });
+
   const pick = document.getElementById('contact-pick');
   if (pick) {
     pick.addEventListener('input', () => {
       const m = /^(.*) · (\+\d+)$/.exec(pick.value);
       if (!m) return;
-      form.person_name.value = m[1];
-      form.phone.value = m[2];
-      updatePreview();
+      const already = [...people.querySelectorAll('[name=recipient_phone]')].some((i) => i.value.replace(/\D/g, '') === m[2].replace(/\D/g, ''));
+      if (!already) addPerson(m[1], m[2]);
+      pick.value = '';
+      pick.blur();
     });
   }
 
@@ -115,7 +154,9 @@
     clearTimeout(timer);
     timer = setTimeout(async () => {
       const body = {};
-      ['title', 'person_name', 'amount', 'message', 'first_due_date', 'remind_days_before'].forEach((k) => { body[k] = form[k].value; });
+      ['title', 'amount', 'message', 'first_due_date', 'remind_days_before'].forEach((k) => { body[k] = form[k].value; });
+      const firstName = people.querySelector('[name=recipient_name]');
+      body.person_name = firstName ? firstName.value : '';
       try {
         const res = await fetch('/payments/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         const j = await res.json();

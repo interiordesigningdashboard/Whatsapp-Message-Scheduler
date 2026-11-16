@@ -193,34 +193,60 @@ function messageLogRows(id) {
 
 // ---------- Payment reminders ----------
 
+// People a payment reminder goes to: [{ name, phone }], in the order they were added.
+function paymentRecipients(id) {
+  return db.prepare('SELECT name, phone FROM payment_recipients WHERE payment_id = ? ORDER BY position, rowid').all(id)
+    .map((r) => ({ name: r.name, phone: r.phone }));
+}
+
 function listPayments() {
-  return db.prepare('SELECT * FROM payments ORDER BY title COLLATE NOCASE').all();
+  const rows = db.prepare('SELECT * FROM payments ORDER BY title COLLATE NOCASE').all();
+  for (const p of rows) p.recipients = paymentRecipients(p.id);
+  return rows;
 }
 
 function getPayment(id) {
-  return db.prepare('SELECT * FROM payments WHERE id = ?').get(id);
+  const p = db.prepare('SELECT * FROM payments WHERE id = ?').get(id);
+  if (p) p.recipients = paymentRecipients(id);
+  return p;
+}
+
+function setPaymentRecipients(id, recipients) {
+  db.prepare('DELETE FROM payment_recipients WHERE payment_id = ?').run(id);
+  const ins = db.prepare('INSERT OR IGNORE INTO payment_recipients (payment_id, name, phone, position) VALUES (?, ?, ?, ?)');
+  recipients.forEach((r, i) => ins.run(id, r.name, r.phone, i));
 }
 
 const PAYMENT_FIELDS = ['title', 'person_name', 'phone', 'amount', 'every_months', 'first_due_date',
   'remind_days_before', 'send_time', 'end_count', 'end_date', 'message', 'active'];
 
+// f.recipients: [{ name, phone }], at least one. The first is also stored in payments.person_name/phone.
 function createPayment(f) {
   const now = t.ymdhms(new Date());
-  const { lastInsertRowid } = db.prepare(`INSERT INTO payments (${PAYMENT_FIELDS.join(', ')}, created_at, updated_at)
-    VALUES (${PAYMENT_FIELDS.map(() => '?').join(', ')}, ?, ?)`)
-    .run(...PAYMENT_FIELDS.map((k) => f[k]), now, now);
-  return Number(lastInsertRowid);
+  const row = { ...f, person_name: f.recipients[0].name, phone: f.recipients[0].phone };
+  return db.transaction(() => {
+    const { lastInsertRowid } = db.prepare(`INSERT INTO payments (${PAYMENT_FIELDS.join(', ')}, created_at, updated_at)
+      VALUES (${PAYMENT_FIELDS.map(() => '?').join(', ')}, ?, ?)`)
+      .run(...PAYMENT_FIELDS.map((k) => row[k]), now, now);
+    setPaymentRecipients(Number(lastInsertRowid), f.recipients);
+    return Number(lastInsertRowid);
+  })();
 }
 
 function updatePayment(id, f) {
-  db.prepare(`UPDATE payments SET ${PAYMENT_FIELDS.map((k) => `${k} = ?`).join(', ')}, updated_at = ? WHERE id = ?`)
-    .run(...PAYMENT_FIELDS.map((k) => f[k]), t.ymdhms(new Date()), id);
+  const row = { ...f, person_name: f.recipients[0].name, phone: f.recipients[0].phone };
+  db.transaction(() => {
+    db.prepare(`UPDATE payments SET ${PAYMENT_FIELDS.map((k) => `${k} = ?`).join(', ')}, updated_at = ? WHERE id = ?`)
+      .run(...PAYMENT_FIELDS.map((k) => row[k]), t.ymdhms(new Date()), id);
+    setPaymentRecipients(id, f.recipients);
+  })();
 }
 
 function deletePayment(id) {
   db.prepare('DELETE FROM payments WHERE id = ?').run(id);
 }
 
+// Log rows of one reminder (one row per person).
 function paymentLogRows(id, scheduledFor) {
   return db.prepare(`SELECT * FROM send_log WHERE job_type = 'payment' AND job_id = ? AND scheduled_for = ?`)
     .all(id, scheduledFor);
@@ -277,7 +303,7 @@ module.exports = {
   listGroups, groupNames, saveGroups,
   getBirthday, listBirthdays, createBirthday, updateBirthday, deleteBirthday,
   setBirthdayContent, clearBirthdayContent, birthdayLogRows, nextOccurrence, hasContentFor,
-  listPayments, getPayment, createPayment, updatePayment, deletePayment, paymentLogRows,
+  listPayments, getPayment, paymentRecipients, createPayment, updatePayment, deletePayment, paymentLogRows,
   listContacts, saveContacts,
   getMessage, listMessages, pendingMessages, createMessage, updateMessage, finishMessage, deleteMessage, messageLogRows,
   addLog, history, saveSettings,

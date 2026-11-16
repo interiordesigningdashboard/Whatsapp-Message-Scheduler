@@ -148,7 +148,7 @@ data/                 # app.db, uploads/, .wwebjs_auth/  (git-ignored)
 
 | Topic | Decision |
 |---|---|
-| Recipient | One person's private chat (not groups). Picked from WhatsApp contacts or typed (+91 added for 10 digits). |
+| Recipients | One or more people, each in their own private chat (not groups), each with their own `{name}`. Picked from WhatsApp contacts or typed (+91 added for 10 digits). |
 | Repeats | Every month, every N months, or every year. Due day from the first due date; short months use their last day. |
 | Reminder days | Every day from N days before the due date through the due date (default N = 2), at a set time (default 10:00). |
 | End | Optional number of payments and/or end date; otherwise forever. |
@@ -157,6 +157,6 @@ data/                 # app.db, uploads/, .wwebjs_auth/  (git-ignored)
 | Missed | Same rule as birthdays: never sent late, marked missed. |
 | Alerts to me | Only when a reminder fails or is missed. |
 
-Data: `payments` table (title, person, phone, amount, every_months, first_due_date, remind_days_before, send_time,
-end_count, end_date, message, active) and `wa_contacts` (phone, name). `send_log.job_type` gains `payment`,
-with the person's number as the target and the reminder time as `scheduled_for`.
+Data: `payments` table (title, amount, every_months, first_due_date, remind_days_before, send_time,
+end_count, end_date, message, active), `payment_recipients` (payment_id, name, phone) and `wa_contacts` (phone, name). `send_log.job_type` gains `payment`,
+with each person's number as a target and the reminder time as `scheduled_for`.

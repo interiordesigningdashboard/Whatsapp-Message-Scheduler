@@ -18,7 +18,7 @@ library's main branch but not yet released. You should see `[patch-wwebjs] appli
    Use **Send test to myself** to see how it looks. After the birthday is sent (or missed), the image and caption
    are deleted, so next year you add new ones.
 5. **One-off messages:** schedule a single message (image and/or caption) for any date and time.
-6. **Payments:** reminders for EMI, insurance and other dues, sent to one person's private WhatsApp chat.
+6. **Payments:** reminders for EMI, insurance and other dues, sent to one or more people's private WhatsApp chats.
    See [Payment reminders](#payment-reminders) below.
 7. **History:** shows every send: sent, failed (with the reason) or missed.
 
@@ -33,7 +33,9 @@ These can be turned off, and the times changed, on the **Settings** page.
 
 **Payments → + Add payment reminder**:
 
-- **Who:** pick a saved contact (load them once on **Groups & contacts**) or type the number. 10-digit numbers get +91.
+- **Who:** one or more people. Pick saved contacts (load them once on **Groups & contacts**), or click
+  **+ Add person** and type a name and number. 10-digit numbers get +91. Each person gets their own private
+  message with `{name}` replaced by their name; if one number fails, the others still get theirs.
 - **Repeats:** every month, every N months (3 = quarterly), or every year. The due day comes from the first due date;
   if a month is shorter (the 31st in February), the last day of that month is used.
 - **When:** a reminder goes out **every day from N days before the due date up to the due date** (default 2 days

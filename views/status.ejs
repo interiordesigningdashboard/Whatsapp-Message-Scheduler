@@ -49,7 +49,7 @@
         <tr>
           <td><%= t.prettyDateTime(u.when) %></td>
           <td><span class="muted"><%= u.kind %>:</span> <a href="<%= u.url %>"><%= u.label %></a></td>
-          <td><%= u.groups === 'person' ? 'person' : u.groups + ' group' + (u.groups === 1 ? '' : 's') %></td>
+          <td><%= u.people ? u.people + (u.people === 1 ? ' person' : ' people') : u.groups + ' group' + (u.groups === 1 ? '' : 's') %></td>
           <td><% if (u.hasContent) { %><span class="tag tag-ok">ready</span><% } else { %><a class="tag tag-warn" href="<%= u.url %>">needs content</a><% } %></td>
         </tr>
       <% }) %>

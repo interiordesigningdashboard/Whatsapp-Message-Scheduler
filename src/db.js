@@ -131,6 +131,17 @@ const MIGRATIONS = [
   DROP TABLE send_log;
   ALTER TABLE send_log_new RENAME TO send_log;
   `,
+  // 4: a payment reminder can go to several people. payments.person_name/phone keep the first one.
+  `
+  CREATE TABLE payment_recipients (
+    payment_id INTEGER NOT NULL REFERENCES payments(id) ON DELETE CASCADE,
+    name       TEXT    NOT NULL,
+    phone      TEXT    NOT NULL,                     -- digits with country code
+    position   INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (payment_id, phone)
+  );
+  INSERT INTO payment_recipients (payment_id, name, phone, position) SELECT id, person_name, phone, 0 FROM payments;
+  `,
 ];
 
 function open() {

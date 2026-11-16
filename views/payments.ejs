@@ -4,14 +4,14 @@
   <h1>Payment reminders</h1>
   <a class="btn" href="/payments/new">+ Add payment reminder</a>
 </div>
-<p class="muted">EMI, insurance and other dues. Sent to the person's own WhatsApp chat every day from a few days before the due date until the due date.</p>
+<p class="muted">EMI, insurance and other dues. Sent to each person's own WhatsApp chat every day from a few days before the due date until the due date.</p>
 
 <section class="card">
   <% if (!rows.length) { %>
     <p class="muted">No payment reminders yet.</p>
   <% } else { %>
     <table>
-      <thead><tr><th>Payment</th><th>Person</th><th>Repeats</th><th>Next due</th><th>Next reminder</th><th></th></tr></thead>
+      <thead><tr><th>Payment</th><th>People</th><th>Repeats</th><th>Next due</th><th>Next reminder</th><th></th></tr></thead>
       <tbody>
       <% rows.forEach((p) => { %>
         <tr class="<%= p.active && !p.ended ? '' : 'inactive' %>">
@@ -21,7 +21,11 @@
             <% if (!p.active) { %> <span class="tag">paused</span><% } %>
             <% if (p.ended) { %> <span class="tag">ended</span><% } %>
           </td>
-          <td><%= p.person_name %><br><span class="muted"><%= pay.prettyPhone(p.phone) %></span></td>
+          <td>
+            <% p.recipients.forEach((r) => { %>
+              <div><%= r.name %> <span class="muted"><%= pay.prettyPhone(r.phone) %></span></div>
+            <% }) %>
+          </td>
           <td><%= pay.describeRepeat(p) %><br><span class="muted"><%= pay.describeEnd(p) %></span></td>
           <td><%= p.nextDue ? pay.shortDate(p.nextDue.date) : '-' %></td>
           <td>
