@@ -3,3 +3,7 @@ data/
 .wwebjs_cache/
 *.log
 .env
+
+# Spreadsheets with personal/financial data stay out of git
+*.xlsx
+*.xls

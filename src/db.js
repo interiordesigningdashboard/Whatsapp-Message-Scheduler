@@ -142,6 +142,11 @@ const MIGRATIONS = [
   );
   INSERT INTO payment_recipients (payment_id, name, phone, position) SELECT id, person_name, phone, 0 FROM payments;
   `,
+  // 5: payments created by scripts/import-excel.js carry a key, so re-running the import updates them.
+  `
+  ALTER TABLE payments ADD COLUMN import_key TEXT;
+  CREATE UNIQUE INDEX payments_import_key ON payments(import_key) WHERE import_key IS NOT NULL;
+  `,
 ];
 
 function open() {

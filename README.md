@@ -48,6 +48,22 @@ These can be turned off, and the times changed, on the **Settings** page.
 You only get a WhatsApp alert for payment reminders when one **fails** (e.g. the number is not on WhatsApp)
 or is **missed**. Successful reminders show in History with 💳.
 
+### Importing reminders from Excel
+
+`scripts/import-excel.js` turns the "VEHICLE INSURANCE DETAILS" workbook into payment reminders
+(vehicle insurance, LIC and other premiums, monthly dues and SIPs, loan EMIs). Messages are bullet points
+with no greeting and no recipient name. Account numbers and password columns are never read.
+
+First run it without `--apply` to see what it would create (nothing is saved):
+
+```
+node scripts/import-excel.js "C:\path\to\VEHICLE_INSURANCE_DETAILS.xlsx" --to "Vivek=+91 99625 00387" --to "Deepa akka=+91 99625 00404" --time 10:00 --days 2
+```
+
+Then the same command with `--apply` to save. After editing the Excel, run it again with `--apply`:
+reminders it made before are updated (no duplicates) and paused ones stay paused. Add `--prune` to also
+delete reminders whose row was removed from the Excel. The app can keep running while you import.
+
 ### Rules worth knowing
 
 - **Never sent late.** If the PC is off or WhatsApp is not connected at the send time, the app keeps trying for the
